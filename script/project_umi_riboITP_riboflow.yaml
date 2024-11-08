@@ -1,0 +1,109 @@
+---
+do_fastqc: false
+do_check_file_existence: true
+dedup_method: umi_tools
+umi_tools_extract_arguments: -p "^(?P<umi_1>.{12})(?P<discard_1>.{4}).+$" --extract-method=regex
+umi_tools_dedup_arguments: --read-length
+do_rnaseq: false
+do_metadata: true
+clip_arguments: " -a AAAAAAAAAACAAAAAAAAAA --overlap=4 --trimmed-only --maximum-length=56 --minimum-length=31 --quality-cutoff=28"
+mapping_quality_cutoff: 2
+alignment_arguments:
+  filter: -L 15 --no-unal --norc
+  transcriptome: -L 15 --norc --no-unal
+  genome: --no-unal -k 1
+ribo:
+  ref_name: appris_celegans_v1
+  metagene_radius: 50
+  left_span: 35
+  right_span: 10
+  read_length:
+    min: 21
+    max: 40
+  coverage: true
+output:
+  individual_lane_directory: individual
+  merged_lane_directory: merged
+  intermediates:
+    base: intermediates_umi
+    clip: clip
+    log: log
+    transcriptome_alignment: transcriptome_alignment
+    filter: filter
+    genome_alignment: genome_alignment
+    bam_to_bed: bam_to_bed
+    quality_filter: quality_filter
+    alignment_ribo: alignment_ribo
+  output:
+    base: output_umi
+    log: log
+    fastqc: fastqc
+    ribo: ribo
+input:
+  reference:
+    filter: /work/07024/yshukla/ls6/C_elegans_development/data/reference/filter/celegans/celegans_rRNA_new*
+    transcriptome: /work/07024/yshukla/ls6/C_elegans_development/data/reference/transcriptome/celegans/appris_celegans_v1_new*
+    regions: /work/07024/yshukla/ls6/C_elegans_development/data/reference/transcriptome/celegans/appris_celegans_v1_actual_regions_new.bed
+    transcript_lengths: /work/07024/yshukla/ls6/C_elegans_development/data/reference/transcriptome/celegans/appris_celegans_v1_transcript_lengths_new.tsv
+  fastq_base: ""
+  fastq:
+    WT_1-cell_1:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_one_cell_B7_1.fastq.gz
+    WT_1-cell_2:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_one_cell_B10_2.fastq.gz
+    WT_2-cell_1:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_two_cell_B1_1.fastq.gz
+    WT_2-cell_2:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_two_cell_B2_2.fastq.gz
+    WT_2-cell_3:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_two_cell_B3_3.fastq.gz
+    WT_2-cell_4:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_two_cell_B7_4.fastq.gz
+    WT_4-cell_1:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_four_cell_B2_1.fastq.gz
+    WT_4-cell_2:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_four_cell_B3_2.fastq.gz
+    WT_4-cell_3:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_four_cell_B3_3.fastq.gz
+    WT_4-cell_4:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_four_cell_B7_4.fastq.gz
+    WT_8-cell_1:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_eight_cell_B3_1.fastq.gz
+    WT_8-cell_2:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_eight_cell_B7_2.fastq.gz
+    WT_8-cell_3:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_eight_cell_B8_3.fastq.gz
+    WT_8-cell_4:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_eight_cell_B9_4.fastq.gz
+    WT_8-cell_5:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/WT_eight_cell_B10_5.fastq.gz
+    OMA-1_1-cell_1:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_one_cell_B6_1.fastq.gz
+    OMA-1_1-cell_2:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_one_cell_B10_2.fastq.gz
+    OMA-1_1-cell_3:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_one_cell_B10_3.fastq.gz
+    OMA-1_2-cell_1:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_two_cell_B4_1.fastq.gz
+    OMA-1_2-cell_2:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_two_cell_B5_2.fastq.gz 
+    OMA-1_2-cell_3:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_two_cell_B6_3.fastq.gz
+    OMA-1_2-cell_4:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_two_cell_B10_4.fastq.gz 
+    OMA-1_2-cell_5:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_two_cell_B8_5.fastq.gz
+    OMA-1_2-cell_6:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_two_cell_B9_6.fastq.gz
+    OMA-1_4-cell_1:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_four_cell_B4_1.fastq.gz
+    OMA-1_4-cell_2:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_four_cell_B5_2.fastq.gz 
+    OMA-1_4-cell_3:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_four_cell_B6_3.fastq.gz
+    OMA-1_4-cell_4:
+      - /work/07024/yshukla/ls6/C_elegans_development/data/sequencing_data/raw_data_for_submission/OMA_four_cell_B9_4.fastq.gz
+
+root_meta: "./project_umi.yaml"
+
+
