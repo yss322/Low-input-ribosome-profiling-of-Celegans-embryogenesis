@@ -5379,7 +5379,8 @@ write_csv(wt_enrichment_export,"./output/Tables/wt_enrichment.csv")
 
 write_csv(enrichment_df_filter_wt, "./output/Tables/wt_enrichment_filtered.csv")
 #oma_wt_enrichemnt_results 
-oma_wt_enrichment_export <-enrichment_results@compareClusterResult
+oma_wt_enrichment_export <-multimodal_enrichment_results@compareClusterResult
+
 write_csv(oma_wt_enrichment_export,"./output/Tables/oma_wt_enrichment.csv") 
 
 write_csv(multimodal_enrichment_df_filtered, "./output/Tables/multimodal_enrichment_df.csv")
