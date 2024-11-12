@@ -315,8 +315,10 @@ create_MD_plot <- function(contrast, genes_to_label = c()) {
   plot_MD <- ggplot(output, aes(x = logCPM, y = logFC)) +
     # Continuous density representation with fixed limits
     stat_density_2d(aes(fill = after_stat(density)), geom = "tile", contour = FALSE) +
-    scale_fill_gradient(low = "white", high = "#005f86", name = "Density", 
-                        limits = c(0, 0.35)) +
+scale_fill_gradientn(colors = c("white", "#e6f3f8", "#005f86"),
+                     values = c(0, 0.03, 1),  # positions of colors in the scale
+                     name = "Density",
+                     limits = c(0, 0.35))+
     # Plot all significant changes in #bf5700 color
     geom_point(data = significant_changes, aes(x = logCPM, y = logFC), 
                alpha = 1, size = 0.5, color = "#bf5700") +
@@ -4560,7 +4562,7 @@ cluster_names <- setNames(
 )
 
 
-background_data <- read.csv("/Users/yashshukla/Documents/Computational/output/pairwise_translation_analysis/all_detected.csv")
+background_data <- rnaseq_neb_table[apply(rnaseq_neb_table[,-1] > 1, 1, any)]
 background_genes <- background_data$gene_name 
 
 # Create gene lists by cluster using the same order as wt_plot
@@ -4604,11 +4606,11 @@ enrichment_df <- as.data.frame(wt_enrichment_simplified) %>%
   # Sort by Cluster and enrichment_ratio instead of combined score
   arrange(Cluster, desc(enrichment_ratio))
 
-enrichment_df <- enrichment_df |> filter(enrichment_ratio> 2)
+enrichment_df_filter_wt <- enrichment_df |> filter(enrichment_ratio> 2)
 
-write_csv(enrichment_df, "/Users/yashshukla/Documents/Computational/Celegans_riboITP/paper_draft/20241022_Paper_draft/enrichment_df.csv")
+#We export this filtered file and then modify it manually. The resulting file is imported:
 
-enrichment_df_mod <- read_csv("/Users/yashshukla/Downloads/enrichment_df_modified.csv")
+enrichment_df_mod <- read_csv("./input_data/enrichment_df_modified.csv")
 
 
 
@@ -4680,9 +4682,10 @@ enrichment_plot_filtered <- ggplot(filtered_df,
 ## OMA-1 clustering
 
 ```{r}
+# Set seed for reproducibility
 set.seed(123)
 
-# Prepare data (CLR-transformed data, no scaling needed)
+# Prepare data function (CLR-transformed data, no scaling needed)
 prepare_data <- function(data) {
   gene_names <- data$gene_name
   data_prepared <- as.matrix(data[, -1])
@@ -4702,7 +4705,7 @@ to_roman <- function(x) {
   return(as.character(roman))
 }
 
-# Prepare data
+# Prepare initial data
 wt_data <- averaged_clr_TE[, c(1,2:4)]
 colnames(wt_data) <- c("gene_name", "1", "2", "4")
 wt_data <- merge(wt_data, oma, by='gene_name')
@@ -4717,13 +4720,13 @@ oma_prepared <- prepare_data(oma_data)
 wt_normalized <- normalize_to_1cell(wt_prepared)
 oma_normalized <- normalize_to_1cell(oma_prepared)
 
-# Clustering
+# Clustering function
 cluster_data <- function(data, k = 2) {
-  set.seed(123)
   km <- kmeans(data, centers = k)
   return(km$cluster)
 }
 
+# Perform clustering
 wt_clusters <- cluster_data(wt_normalized)
 oma_clusters <- cluster_data(oma_normalized)
 
@@ -4746,6 +4749,9 @@ combined_results <- combined_results %>%
     TRUE ~ paste(wt_cluster, oma_cluster, sep = "_")
   ))
 
+# Define desired order for clusters
+multimodal_desired_order <- c("1_1", "1_2", "2_1", "2_2")  # Modify based on your clusters
+
 # Prepare plot data
 plot_data <- bind_rows(
   wt_data %>% 
@@ -4767,34 +4773,38 @@ plot_data <- plot_data %>%
   mutate(normalized_CLR = CLR_value - CLR_value[stage == "1"]) %>%
   ungroup()
 
+# Update gene counts with desired order
+multimodal_gene_counts <- combined_results %>%
+  count(combined_cluster) %>%
+  mutate(
+    combined_cluster = factor(combined_cluster, levels = multimodal_desired_order)
+  ) %>%
+  arrange(combined_cluster) %>%
+  mutate(
+    roman_numeral = sapply(1:n(), to_roman),
+    label = paste0("Cluster ", roman_numeral, "\n(", n, " genes)")
+  )
+
 # Calculate cluster profiles
-cluster_profiles <- plot_data %>%
+multimodal_cluster_profiles <- plot_data %>%
   group_by(combined_cluster, condition, stage) %>%
   summarise(
     mean_normalized_CLR = mean(normalized_CLR, na.rm = TRUE),
     se_value = sd(normalized_CLR, na.rm = TRUE) / sqrt(n()),
     .groups = "drop"
-  )
-
-# Count genes and create Roman numeral labels
-gene_counts <- combined_results %>%
-  count(combined_cluster) %>%
-  mutate(
-    cluster_num = row_number(),
-    roman_numeral = sapply(cluster_num, to_roman),
-    label = paste0("Cluster ", roman_numeral, "\n(", n, " genes)")
-  )
+  ) %>%
+  mutate(combined_cluster = factor(combined_cluster, levels = multimodal_desired_order))
 
 # Create the main plot
-multimodal_plot <- ggplot(cluster_profiles, 
+multimodal_plot <- ggplot(multimodal_cluster_profiles, 
                           aes(x = stage, y = mean_normalized_CLR, color = condition, group = condition)) +
   geom_line() +
   geom_pointrange(aes(ymin = mean_normalized_CLR - se_value,
                       ymax = mean_normalized_CLR + se_value),
                   size = 0.1) +
   facet_wrap(~ combined_cluster, nrow = 1,
-             labeller = labeller(combined_cluster = setNames(gene_counts$label, 
-                                                             gene_counts$combined_cluster))) +
+             labeller = labeller(combined_cluster = setNames(multimodal_gene_counts$label,
+                                      multimodal_gene_counts$combined_cluster))) +
   coord_cartesian(ylim = c(-2.5, 2.5)) +
   labs(
     x = "Cell-stage",
@@ -4810,35 +4820,42 @@ multimodal_plot <- ggplot(cluster_profiles,
     legend.position = "right"
   )
 
-# Gene Ontology enrichment analysis
-background_data <- read.csv("/Users/yashshukla/Documents/Computational/output/pairwise_translation_analysis/all_detected.csv")
-background_genes <- background_data$gene_name
+# Create gene lists for enrichment analysis
+multimodal_gene_lists <- lapply(multimodal_desired_order, function(cluster) {
+  combined_results %>%
+    filter(combined_cluster == cluster) %>%
+    pull(gene_name)
+})
+names(multimodal_gene_lists) <- multimodal_gene_counts$roman_numeral[match(multimodal_desired_order, multimodal_gene_counts$combined_cluster)]
 
-# Prepare gene lists
-gene_lists <- plot_data %>%
-  distinct(gene_name, combined_cluster) %>%
-  group_by(combined_cluster) %>%
-  summarise(genes = list(unique(gene_name))) %>%
-  deframe()
+# Get background genes
+background_data <- rnaseq_neb_table[apply(rnaseq_neb_table[,-1] > 1, 1, any)]
+background_genes <- background_data$gene_name 
 
-# GO enrichment analysis
-enrichment_results <- compareCluster(
-  geneClusters = gene_lists,
+
+# Properly name the gene lists
+names(multimodal_gene_lists) <- sapply(seq_along(multimodal_gene_lists), function(i) to_roman(i))
+
+
+
+# Now run enrichment with named lists
+multimodal_enrichment_results <- compareCluster(
+  geneClusters = multimodal_gene_lists,
   fun = "enrichGO",
   OrgDb = org.Ce.eg.db,
   keyType = "SYMBOL",
   ont = "ALL",
   pAdjustMethod = "BH",
-  pvalueCutoff = 0.05,
+  pvalueCutoff = 0.2,
   qvalueCutoff = 0.2,
   universe = background_genes
 )
 
-# Clean results
-cleaned_results <- simplify(enrichment_results)
+# Continue with the rest of the analysis
+multimodal_cleaned_results <- simplify(multimodal_enrichment_results)
 
 # Process enrichment data
-enrichment_df <- as.data.frame(cleaned_results) %>%
+multimodal_enrichment_df_filtered <- as.data.frame(multimodal_cleaned_results) %>%
   mutate(
     GeneRatio_num = as.numeric(sapply(strsplit(GeneRatio, "/"), "[", 1)),
     GeneRatio_denom = as.numeric(sapply(strsplit(GeneRatio, "/"), "[", 2)),
@@ -4846,10 +4863,17 @@ enrichment_df <- as.data.frame(cleaned_results) %>%
     BgRatio_denom = as.numeric(sapply(strsplit(BgRatio, "/"), "[", 2)),
     enrichment_ratio = (GeneRatio_num/GeneRatio_denom)/(BgRatio_num/BgRatio_denom)
   ) %>%
-  arrange(Cluster, desc(enrichment_ratio))
+  filter(enrichment_ratio > 2)
+
+# Export the enrichment table
+
+
+
+# Import modified enrichment table, we edit this manually.
+multimodal_enrichment_df_mod <- read_csv("./input_data/multimodal_enrichment_df_modified.csv")
 
 # Calculate term distinctiveness
-enrichment_df <- enrichment_df %>%
+multimodal_enrichment_df_mod <- multimodal_enrichment_df_mod %>%
   group_by(Description) %>%
   mutate(
     max_enrichment = max(enrichment_ratio),
@@ -4863,41 +4887,17 @@ enrichment_df <- enrichment_df %>%
     Description = factor(Description, levels = unique(Description))
   )
 
-
-
-
-
 # Filter for top terms
-filtered_df <- enrichment_df %>%
-  filter(p.adjust < 0.1, enrichment_ratio > 2) %>%
+multimodal_filtered_df <- multimodal_enrichment_df_mod %>%
+  filter(p.adjust < 0.2, enrichment_ratio > 2) %>%
   group_by(primary_cluster) %>%
-  slice_head(n = 6) %>%
+  slice_head(n = 10) %>%
   ungroup()
 
-
-
-
-# [Previous code remains the same until the enrichment plot section]
-
-# Modify the cluster labels to use Roman numerals that match multimodal plot
-cluster_roman_map <- setNames(
-  gene_counts$roman_numeral,
-  gene_counts$combined_cluster
-)
-
-# Update filtered_df to use Roman numerals
-filtered_df <- filtered_df %>%
-  mutate(
-    # Convert Cluster to Roman numerals using the mapping
-    Cluster_Roman = cluster_roman_map[Cluster],
-    # Ensure the order matches the multimodal plot
-    Cluster_Roman = factor(Cluster_Roman, levels = gene_counts$roman_numeral)
-  )
-
-# Create enrichment plot with Roman numerals
-enrichment_plot_oma <- ggplot(filtered_df,
-                          aes(x = Cluster_Roman,
-                              y = Description)) +
+# Create enrichment plot
+multimodal_enrichment_plot <- ggplot(multimodal_filtered_df,
+                                     aes(x = factor(Cluster, levels = names(multimodal_gene_lists)),
+                                         y = Description)) +
   geom_point(aes(size = enrichment_ratio,
                  color = -log10(p.adjust))) +
   scale_color_gradient(low = UT_BLUE, high = BURNT_ORANGE) +
@@ -5126,12 +5126,12 @@ ggsave(
 
 dir.create("./output/Figures/Figure_7", recursive = TRUE, showWarnings = FALSE)
 Figure_7_A <- multimodal_plot
-Figure_7_B <- enrichment_plot_oma 
+Figure_7_B <- multimodal_enrichment_plot
 
 
 
 ggsave( "./output/Figures/Figure_7/Figure_7_A.pdf",multimodal_plot, width = 180, height = 75, units = "mm", dpi = 600, limitsize = F)
-ggsave( "/Users/yashshukla/Documents/Computational/Celegans_riboITP/paper_draft/20241022_Paper_draft/Figures/Figure_7/Figure_7_B.pdf",Figure_7_B , width = 180, height = 150, units = "mm", dpi = 600, limitsize = F)
+ggsave( "./output/Figures/Figure_7/Figure_7_B.pdf",Figure_7_B , width = 180, height = 150, units = "mm", dpi = 600, limitsize = F)
 ```
 
 ### Figure S1
@@ -5299,6 +5299,15 @@ ggsave(
     dpi = 600,
     bg = NULL) 
 
+ggsave(
+    "./output/Figures/Figure_S5/Panel_S5D_S5E.pdf",
+    plot = Panel_S5D_S5E ,
+    width =110,
+    height =60,
+    units = c("mm"),
+    dpi = 600,
+    bg = NULL) 
+
 
 
 
@@ -5364,12 +5373,14 @@ write_csv(rnaseq_w_diff,"./output/Tables/RNA_counts.csv")
 all_counts_diff = merge(rnaseq_w_diff, rcw_ribo, by= "transcript")
 write_csv(all_counts_diff,"./output/Tables/all_table_counts.csv")
 
-
 #wt_enrichment_results
 wt_enrichment_export <- wt_enrichment_results@compareClusterResult
 write_csv(wt_enrichment_export,"./output/Tables/wt_enrichment.csv") 
 
+write_csv(enrichment_df_filter_wt, "./output/Tables/wt_enrichment_filtered.csv")
 #oma_wt_enrichemnt_results 
 oma_wt_enrichment_export <-enrichment_results@compareClusterResult
 write_csv(oma_wt_enrichment_export,"./output/Tables/oma_wt_enrichment.csv") 
+
+write_csv(multimodal_enrichment_df_filtered, "./output/Tables/multimodal_enrichment_df.csv")
 ```
