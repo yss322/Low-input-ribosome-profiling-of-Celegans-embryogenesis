@@ -25,7 +25,7 @@ The dataset includes:
 - Multiple replicates per condition
 
 ### Raw Data
-Raw sequencing data is available from GEO under accession number [INSERT GEO NUMBER]. This includes:
+Raw sequencing data is available from GEO under accession number [GSE281412]. This includes:
 - Ribosome profiling data for wild-type and OMA-1(zu405) mutant embryos
 - RNA-seq data from equivalent developmental stages
 - Multiple replicates for each developmental stage
