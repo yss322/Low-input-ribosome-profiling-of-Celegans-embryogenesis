@@ -123,7 +123,7 @@ Celegans_translation_git/
 ### Quick Start
 1. Clone this repository:
 ```bash
-git clone [repository URL]
+git clone https://github.com/yss322/Low-input-ribosome-profiling-of-Celegans-embryogenesis.git
 cd Celegans_translation_git
 ```
 
