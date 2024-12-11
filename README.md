@@ -149,7 +149,6 @@ BiocManager::install(c("ribor", "edgeR", "biomaRt", "clusterProfiler",
 ### Data Sources
 - `genetics.114.168823-7.xls`: OMA-1 pulldown data (Spike et al. 2014)
 - `embj2010334-sup-0001.xls`: GLD-1 pulldown data (Wright et al. 2011)
-- Raw sequencing data: Available at GEO [INSERT NUMBER]
 
 ### RiboFlow Configuration
 For users interested in processing raw data, RiboFlow configuration files are provided in `script/riboflow_scripts/`:
