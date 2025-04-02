@@ -60,6 +60,8 @@ Celegans_translation_git/
 │   ├── embj2010334-sup-0001.xls                    # GLD-1 pulldown dataset
 │   ├── enrichment_df_modified.csv                  # Modified enrichment data
 │   └── multimodal_enrichment_df_modified.csv       # Modified multimodal enrichment data
+│   ├── TE table in WT early embryos.xlsm         # Quarato_et_al_2021 data
+│   └── GSE139880_Ribosom_occupancy_for_wild-type.xlsx   # Lee et al 2020 dataset
 ├── script/
 │   ├── Analysis_and_figures.qmd                    # Main analysis script
 │   └── riboflow_scripts/
@@ -67,18 +69,6 @@ Celegans_translation_git/
 │       └── project_umi_riboITP_riboflow.yaml       # Ribo-seq processing configuration
 └── output/
     ├── Figures/
-    │   ├── Figure_1/
-    │   ├── Figure_2/
-    │   ├── Figure_3/
-    │   ├── Figure_4/
-    │   ├── Figure_5/
-    │   ├── Figure_6/
-    │   ├── Figure_7/
-    │   ├── Figure_S1/
-    │   ├── Figure_S2/
-    │   ├── Figure_S3/
-    │   ├── Figure_S4/
-    │   └── Figure_S5/
     └── Tables/
 ```
 

@@ -42,7 +42,6 @@ library(clusterProfiler)
 library(biomaRt)
 library(patchwork)
 library(dplyr)
-library(clusterProfiler)
 library(org.Ce.eg.db)
 library(GO.db)
 library(tibble)
@@ -492,7 +491,7 @@ ensembl <- useMart(biomart = "ENSEMBL_MART_ENSEMBL",
                    host = "https://nov2020.archive.ensembl.org", 
                    dataset = "celegans_gene_ensembl")
 att <- listAttributes(ensembl)
-results <- getBM(attributes = c('external_gene_name','wormbase_transcript'), 
+results <- getBM(attributes = c('external_gene_name','wormbase_transcript','wormbase_gene'), 
                  mart = ensembl)
 results <- results |> mutate(wormbase_transcript =  gsub("([a-zA-Z]?\\.\\d)$", "", wormbase_transcript))
 
@@ -501,7 +500,35 @@ oma <- results |> dplyr::filter(wormbase_transcript %in% oma_bound_list)
 oma <- as.data.table(unique(oma))
 oma <- oma[,1] 
 colnames(oma) <- c("gene_name")
+
+#data from scholl et al (2024) - develop ent - table 3 
+
+p_granule_table <- p_granule_table <- readxl::read_xlsx("./input_data/scholl_et_al_table_3_2024.xlsx", sheet = "Fig 1, S1B,D,E")
+colnames(p_granule_table)[1] <- "gene_name"
+
+Lee_et_al_elife_2020 <- readxl::read_xlsx("./input_data/GSE139880_Ribosom_occupancy_for_wild-type.xlsx", sheet = 2) 
+
+Lee_et_al_elife_2020 <- Lee_et_al_elife_2020 [,c(4:6)]
+colnames(Lee_et_al_elife_2020) <- c("gene_name", "avg_mRNA_fpm", "avg_Rb_fpm" ) 
+
+Quarato_et_al_natcom_2021 <- readxl::read_xlsx("./input_data/TE table in WT early embryos.xlsm") # data was sent via email from the corresponding author 
+
+colnames(Quarato_et_al_natcom_2021) <- c("wormbase_gene"  ,   "Ribo_TPM" ,"RNA_TPM",  "TE"    ,   "cosmid",   "name"    , "biotype" )
+
+Quarato_et_al_natcom_2021  <- merge(Quarato_et_al_natcom_2021,results,by = "wormbase_gene")
+
+Quarato_et_al_natcom_2021 <- Quarato_et_al_natcom_2021 |> dplyr::select(c("TE","Ribo_TPM","RNA_TPM","external_gene_name"))
+colnames(Quarato_et_al_natcom_2021) <- c("TE_csr","Ribo_Qua","RNA_Qua","gene_name")
+
+Quarato_et_al_natcom_2021 <- Quarato_et_al_natcom_2021[!duplicated(Quarato_et_al_natcom_2021$gene_name), ] 
+
+
+Quarato_et_al_natcom_2021$Ribo_Qua   <- as.numeric(Quarato_et_al_natcom_2021$Ribo_Qua)
+Quarato_et_al_natcom_2021$RNA_Qua   <- as.numeric(Quarato_et_al_natcom_2021$RNA_Qua) 
+Quarato_et_al_natcom_2021$TE_csr   <- as.numeric(Quarato_et_al_natcom_2021$TE_csr)
 ```
+
+\
 
 # QC and pre-processing
 
@@ -3026,33 +3053,30 @@ MDS_patch <- RNA_MDS_plot + Ribo_mds_plot + plot_layout(guides = 'collect')
 ## Assessing 8-cell identity (RNA-seq)
 
 ```{r}
-raw_counts_check<-  cbind( rnaseq_neb_table[,1],round(cpm( rnaseq_neb_table[,-1]),2))
+# Define the specific gene order
+gene_order <- c("cey-2", "med-1", "med-2", "end-1", "end-3", "pes-10", "sdz-31", 
+                "skr-10", "tbx-31", "tbx-40", "oma-1", "mex-3", "pal-1", "skn-1", 
+                "pie-1", "mex-5", "puf-5", "puf-6", "puf-7", "mom-2", "gld-1", 
+                "spn-4", "pos-1", "nos-2")
 
-colnames(raw_counts_check) <-   c( "gene_name",
-  "OMA_1-cell_1",
-  "OMA_1-cell_2",
-  "OMA_1-cell_3",
-  "OMA_2-cell_1",
-  "OMA_2-cell_2",
-  "OMA_2-cell_3",
-  "OMA_4-cell_1",
-  "OMA_4-cell_2",
-  "OMA_4-cell_3",
-  "WT_1-cell_1" ,
-  "WT_1-cell_2" ,
-  "WT_1-cell_3" ,
-  "WT_2-cell_1" ,
-  "WT_2-cell_2", 
-  "WT_2-cell_3" ,
-  "WT_4-cell_1" ,
-  "WT_4-cell_2" ,
-  "WT_4-cell_3" ,
-  "WT_8-cell_1" ,
-  "WT_8-cell_2" ,
-  "WT_8-cell_3")
+# Prepare the data
+raw_counts_check <- cbind(rnaseq_neb_table[,1], round(cpm(rnaseq_neb_table[,-1]), 2))
+colnames(raw_counts_check) <- c("gene_name",
+  "OMA_1-cell_1", "OMA_1-cell_2", "OMA_1-cell_3",
+  "OMA_2-cell_1", "OMA_2-cell_2", "OMA_2-cell_3",
+  "OMA_4-cell_1", "OMA_4-cell_2", "OMA_4-cell_3",
+  "WT_1-cell_1", "WT_1-cell_2", "WT_1-cell_3",
+  "WT_2-cell_1", "WT_2-cell_2", "WT_2-cell_3",
+  "WT_4-cell_1", "WT_4-cell_2", "WT_4-cell_3",
+  "WT_8-cell_1", "WT_8-cell_2", "WT_8-cell_3")
 
+# Filter for the specific genes and wild-type samples
+eight_cell_specific <- raw_counts_check[, -c(2:10)] %>% 
+  filter(gene_name %in% gene_order)
 
-eight_cell_specfic <- raw_counts_check [,-c(2:10)]|> filter (gene_name %in% c( "med-1","med-2","end-1","end-3","skr-10","tbx-31","tbx-40","sdz-31","pes-10","cey-2"))
+# Convert gene_name to a factor with the specified order
+eight_cell_specific$gene_name <- factor(eight_cell_specific$gene_name, 
+                                       levels = gene_order)
 
 create_gene_plot <- function(gene_data) {
   gene_name <- gene_data$gene_name[1]
@@ -3071,12 +3095,12 @@ create_gene_plot <- function(gene_data) {
         TRUE ~ "Other"
       ), levels = c("1-cell", "2-cell", "4-cell", "8-cell", "Other"))
     )
-
+  
   # Create the plot
   p <- ggplot(long_data, aes(x = condition, y = count, fill = cell_stage)) +
     geom_bar(stat = "identity") +
     labs(title = gene_name, y = "Count") +
-    scale_fill_brewer(palette = "Set2") +  # You can change the color palette here
+    scale_fill_brewer(palette = "Set2") +
     theme_minimal() +
     theme(
       axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 8),
@@ -3087,17 +3111,21 @@ create_gene_plot <- function(gene_data) {
   return(p)
 }
 
-# Create a list of plots, one for each gene
-plot_list <- lapply(split(eight_cell_specfic, eight_cell_specfic$gene_name), create_gene_plot)
+# Split the data by gene and create plots in the order specified by the factor levels
+plot_list <- lapply(split(eight_cell_specific, eight_cell_specific$gene_name), create_gene_plot)
 
 # Combine plots using patchwork
 combined_plot_8_cell <- wrap_plots(plot_list, ncol = 5) +
-  plot_layout(axis_titles  = "collect", guides = 'collect') &
+  plot_layout(axis_titles = "collect", guides = "collect") &
   theme(
     axis.text.x = element_blank(),
-    legend.position = 'bottom',
-    legend.justification = 'center',
-    legend.title = element_blank())
+    legend.position = "bottom",
+    legend.justification = "center",
+    legend.title = element_blank()
+  )
+
+# Display the plot
+combined_plot_8_cell
 
 ```
 
@@ -3240,7 +3268,32 @@ all_stats <- rbind(
   eight_cell_stats
 )
 
+# correlation in Lee_et_al_2020 dataset: 
+common_genes <- all_counts |> dplyr::select(gene_name)
 
+Lee_et_al_elife_2020_gene_of_int <- merge(Lee_et_al_elife_2020,common_genes, by = "gene_name")
+
+Lee_et_al_elife_2020_ribo_v_rna <- plot_pairwise_relationships(Lee_et_al_elife_2020_gene_of_int , "avg_mRNA_fpm", "avg_Rb_fpm") +xlab("Average mRNA (FPM)") + 
+  ylab("Average Ribosome Occupancy (FPM)")+
+  ggtitle("Lee et al. (2020)")  +
+  my_custom_theme()  +   
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+spearman_cor <- cor.test(Lee_et_al_elife_2020_gene_of_int$avg_Rb_fpm, Lee_et_al_elife_2020_gene_of_int$avg_mRNA_fpm, method = "spearman", exact = FALSE)
+# correlation in Quarato_et_al_natcom_2021 dataset:  
+
+Quarato_et_al_natcom_2021_gene_of_int <- merge(Quarato_et_al_natcom_2021,common_genes, by = "gene_name")
+
+Quarato_et_al_natcom_2021_gene_of_int_plot <- plot_pairwise_relationships(Quarato_et_al_natcom_2021_gene_of_int,  "RNA_Qua","Ribo_Qua") +
+  xlab("Average mRNA (TPM)") + 
+  ylab("Average Ribosome Occupancy (TPM)")+ 
+  my_custom_theme() +
+  ggtitle("Quarato et al. (2021)")  +
+  my_custom_theme()  +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+
+spearman_cor <- cor.test(Quarato_et_al_natcom_2021_gene_of_int$Ribo_Qua,Quarato_et_al_natcom_2021_gene_of_int$RNA_Qua, method = "spearman")
 ```
 
 ## Pairwise comparision of Ribosome occupancy, RNA abundance and Translational efficiency
@@ -4056,6 +4109,122 @@ averaged_clr_TE_zscored <- averaged_clr_TE %>%
 
 ```
 
+## Compare TE from previous studies
+
+```{r}
+  Quarato_et_al_natcom_2021_TE <- merge(Quarato_et_al_natcom_2021_gene_of_int , averaged_clr_TE, by = "gene_name") 
+  Quarato_et_al_natcom_2021_TE$TE_csr <- round(Quarato_et_al_natcom_2021_TE$TE_csr, digits = 2)
+  
+  yash_vs_quarato_TE_one_cell<- ggplot(Quarato_et_al_natcom_2021_TE, aes(y = TE_csr, x = WT_one_cell_TE)) +
+      geom_jitter(size = 0.2, color = "gray", alpha = 0.3) +
+      geom_hex(bins = 30, aes(alpha = log10(..count..)), fill = BURNT_ORANGE, show.legend = TRUE) +
+    scale_x_continuous(limits = c(-5, 5), breaks = seq(-5, 5, by = 1)) + # Set x-axis limits and breaks
+    scale_y_continuous(limits = c(-10, 5), breaks = seq(-10, 5, by = 1)) +
+      theme_bw() +
+      stat_cor(method = "spearman", 
+               aes(label = ..r.label..), 
+               cor.coef.name = "rho", 
+               digits = 2,
+               size = 3) + my_custom_theme() + xlab("1-cell (Normalized TE)") + ylab("Pooled 1-cell to 4-cell, Quarato et al (log2TE)")
+  
+  
+  yash_vs_quarato_TE_two_cell <- ggplot(Quarato_et_al_natcom_2021_TE, aes(y = TE_csr, x = WT_two_cell_TE)) +
+      geom_jitter(size = 0.2, color = "gray", alpha = 0.3) +
+      geom_hex(bins = 30, aes(alpha = log10(..count..)), fill = BURNT_ORANGE, show.legend = TRUE) +
+    scale_x_continuous(limits = c(-5, 5), breaks = seq(-5, 5, by = 1)) + # Set x-axis limits and breaks
+    scale_y_continuous(limits = c(-10, 5), breaks = seq(-10, 5, by = 1)) +
+      theme_bw() +
+      stat_cor(method = "spearman", 
+               aes(label = ..r.label..), 
+               cor.coef.name = "rho", 
+               digits = 2,
+               size = 3) + my_custom_theme() + xlab("2-cell (Normalized TE)") + ylab("Pooled 1-cell to 4-cell, Quarato et al (log2TE)")
+  
+  yash_vs_quarato_TE_four_cell <- ggplot(Quarato_et_al_natcom_2021_TE, aes(y = TE_csr, x = WT_four_cell_TE)) +
+      geom_jitter(size = 0.2, color = "gray", alpha = 0.3) +
+      geom_hex(bins = 30, aes(alpha = log10(..count..)), fill = BURNT_ORANGE, show.legend = TRUE) +
+    scale_x_continuous(limits = c(-5, 5), breaks = seq(-5, 5, by = 1)) + # Set x-axis limits and breaks
+    scale_y_continuous(limits = c(-10, 5), breaks = seq(-10, 5, by = 1)) +
+      theme_bw() +
+      stat_cor(method = "spearman", 
+               aes(label = ..r.label..), 
+               cor.coef.name = "rho", 
+               digits = 2,
+               size = 3) + my_custom_theme() + xlab("4-cell (Normalized TE)") + ylab("Pooled 1-cell to 4-cell, Quarato et al (log2TE)")
+  
+  
+  yash_vs_quarato_TE_eight_cell <- ggplot(Quarato_et_al_natcom_2021_TE, aes(y = TE_csr, x = WT_eight_cell_TE)) +
+      geom_jitter(size = 0.2, color = "gray", alpha = 0.3) +
+      geom_hex(bins = 30, aes(alpha = log10(..count..)), fill = BURNT_ORANGE, show.legend = TRUE) +
+    scale_x_continuous(limits = c(-5, 5), breaks = seq(-5, 5, by = 1)) + # Set x-axis limits and breaks
+    scale_y_continuous(limits = c(-10, 5), breaks = seq(-10, 5, by = 1)) +
+      theme_bw() +
+      stat_cor(method = "spearman", 
+               aes(label = ..r.label..), 
+               cor.coef.name = "rho", 
+               digits = 2,
+               size = 3) + my_custom_theme() + xlab("8-cell (Normalized TE)") + ylab("Pooled 1-cell to 4-cell, Quarato et al (log2TE)")
+  
+  yash_vs_quarato_all <- yash_vs_quarato_TE_one_cell  + yash_vs_quarato_TE_two_cell + yash_vs_quarato_TE_four_cell  +yash_vs_quarato_TE_eight_cell + plot_layout(axes = "collect" , nrow = 1) & theme(legend.position = "none")
+  
+  # Comapre to Lee et al 
+  Lee_et_al_elife_2020_TE <- merge(Lee_et_al_elife_2020_gene_of_int , averaged_clr_TE, by = "gene_name") |> mutate(Lee_TE = log2(avg_Rb_fpm/avg_mRNA_fpm))
+  
+  
+  yash_vs_Lee_TE_one_cell<- ggplot(Lee_et_al_elife_2020_TE , aes(y = Lee_TE, x = WT_one_cell_TE)) +
+      geom_jitter(size = 0.2, color = "gray", alpha = 0.3) +
+      geom_hex(bins = 30, aes(alpha = log10(..count..)), fill = BURNT_ORANGE, show.legend = TRUE) +
+    scale_x_continuous(limits = c(-5, 5), breaks = seq(-5, 5, by = 1)) + # Set x-axis limits and breaks
+    scale_y_continuous(limits = c(-7, 7), breaks = seq(-7, 7, by = 1)) +
+      theme_bw() +
+      stat_cor(method = "spearman", 
+               aes(label = ..r.label..), 
+               cor.coef.name = "rho", 
+               digits = 2,
+               size = 3) + my_custom_theme() + xlab("1-cell (Normalized TE)") + ylab("Pooled 1-cell to 200-cell, Lee et al (Log2TE)")
+  
+  
+  yash_vs_Lee_TE_two_cell <- ggplot(Lee_et_al_elife_2020_TE, aes(y = Lee_TE, x = WT_two_cell_TE)) +
+      geom_jitter(size = 0.2, color = "gray", alpha = 0.3) +
+      geom_hex(bins = 30, aes(alpha = log10(..count..)), fill = BURNT_ORANGE, show.legend = TRUE) +
+    scale_x_continuous(limits = c(-5, 5), breaks = seq(-5, 5, by = 1)) + # Set x-axis limits and breaks
+    scale_y_continuous(limits = c(-7, 7), breaks = seq(-7, 7, by = 1)) +
+      theme_bw() +
+      stat_cor(method = "spearman", 
+               aes(label = ..r.label..), 
+               cor.coef.name = "rho", 
+               digits = 2,
+               size = 3) + my_custom_theme() + xlab("2-cell (Normalized TE)") + ylab("Pooled 1-cell to 200-cell, Lee et al (Log2TE)")
+  
+  yash_vs_Lee_TE_four_cell <- ggplot(Lee_et_al_elife_2020_TE, aes(y = Lee_TE, x = WT_four_cell_TE)) +
+      geom_jitter(size = 0.2, color = "gray", alpha = 0.3) +
+      geom_hex(bins = 30, aes(alpha = log10(..count..)), fill = BURNT_ORANGE, show.legend = TRUE) +
+    scale_x_continuous(limits = c(-5, 5), breaks = seq(-5, 5, by = 1)) + # Set x-axis limits and breaks
+    scale_y_continuous(limits = c(-7, 7), breaks = seq(-7, 7, by = 1)) +
+      theme_bw() +
+      stat_cor(method = "spearman", 
+               aes(label = ..r.label..), 
+               cor.coef.name = "rho", 
+               digits = 2,
+               size = 3) + my_custom_theme() + xlab("4-cell (Normalized TE)") + ylab("Pooled 1-cell to 200-cell, Lee et al (Log2TE)")
+  
+  
+  yash_vs_Lee_TE_eight_cell <- ggplot(Lee_et_al_elife_2020_TE, aes(y = Lee_TE, x = WT_eight_cell_TE)) +
+      geom_jitter(size = 0.2, color = "gray", alpha = 0.3) +
+      geom_hex(bins = 30, aes(alpha = log10(..count..)), fill = BURNT_ORANGE, show.legend = TRUE) +
+    scale_x_continuous(limits = c(-5, 5), breaks = seq(-5, 5, by = 1)) + # Set x-axis limits and breaks
+    scale_y_continuous(limits = c(-7, 7), breaks = seq(-7, 7, by = 1)) +
+      theme_bw() +
+      stat_cor(method = "spearman", 
+               aes(label = ..r.label..), 
+               cor.coef.name = "rho", 
+               digits = 2,
+               size = 3) + my_custom_theme() + xlab("8-cell (Normalized TE)") + ylab("Pooled 1-cell to 200-cell, Lee et al (Log2TE)")
+  
+  
+  yash_vs_lee_all <- yash_vs_Lee_TE_one_cell + yash_vs_Lee_TE_two_cell+ yash_vs_Lee_TE_four_cell +yash_vs_Lee_TE_eight_cell + plot_layout(axes = "collect" , nrow = 1) & theme(legend.position = "none") 
+```
+
 ## Examples from previous publications
 
 ```{r}
@@ -4067,25 +4236,73 @@ plot_table_long <-  pivot_longer(plot_table,
                         values_to = "TE")
 plot_table_long$cell_stage <- factor(plot_table_long$cell_stage,c("WT_one_cell_TE","WT_two_cell_TE","WT_four_cell_TE","WT_eight_cell_TE","oma_one_cell_TE","oma_two_cell_TE","oma_four_cell_TE"))
 
-target_gene <- c("gpd-4","pal-1","mom-2","neg-1","nos-2","cam-1","lag-1")
+target_gene <- c("gpd-4","pal-1","mom-2","neg-1","nos-2","cam-1","lag-1","dsh-2")
 
+target_gene <- c("C24D10.6","Y37E3.8","mrpl-16","mrpl-37","mrpl-41","mrpl-47","mrps-15","mrps-18A","mrps-26","rack-1","rpl-13","rpl-15","rpl-16","rpl-18","rpl-19","rpl-2","rpl-24.1","rpl-25.2","rpl-28","rpl-3","rpl-4","rpl-5","rpl-7","rps-10","rps-12","rps-23","rps-5","rps-9","ubq-2","ceh-38","daf-19","egl-18","eor-1","hinf-1","lag-1","lin-26","lin-35","nhr-154","nhr-47","sea-1","sptf-3","tbx-9","zgpa-1")
 
+target_gene <- c("C04F5.8","C53A5.17","Y49A3A.3","fars-1","fars-2","fars-3","hoe-1","iars-1","mttu-1","sars-2","tgt-1")
 gene_to_plot <- plot_table_long |> filter(gene_name %in% target_gene ) |> filter(cell_stage %in%c("WT_one_cell_TE","WT_two_cell_TE","WT_four_cell_TE","WT_eight_cell_TE"))
 
-example_from_publication<- ggpubr::ggline(gene_to_plot, x = 'cell_stage', y = 'TE', color = 'gene_name', size = 1, ylim = c(-5, 5)) +
+example_from_publication <- ggpubr::ggline(gene_to_plot, x = 'cell_stage', y = 'TE', color = 'gene_name', size = 1, ylim = c(-5, 5)) +
   labs(y = "Normalized Translational Efficiency", x = "") +
-scale_color_viridis_d() +   scale_x_discrete(labels = c("WT_one_cell_TE" = "1-cell", "WT_two_cell_TE" = "2-cell", 
+scale_color_manual(values = c("#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+                             "#0072B2", "#D55E00", "#CC79A7", "#999999"))  + scale_x_discrete(labels = c("WT_one_cell_TE" = "1-cell", "WT_two_cell_TE" = "2-cell", 
                               "WT_four_cell_TE" = "4-cell", "WT_eight_cell_TE" = "8-cell")) +  geom_text_repel(data = gene_to_plot %>%
                           filter(cell_stage == 'WT_eight_cell_TE'),
                           aes(x = cell_stage, y = TE, label = gene_name),
                           nudge_x = 0.1, inherit.aes = FALSE, na.rm = FALSE, size = 2, show.legend = F) +my_custom_theme() + theme(legend.position = 'none')
 
 
+
+example_from_publication <- ggpubr::ggline(gene_to_plot, x = 'cell_stage', y = 'TE', color = 'gene_name', size = 1, ylim = c(-5, 5)) +
+  labs(y = "Normalized Translational Efficiency", x = "") +
+ scale_x_discrete(labels = c("WT_one_cell_TE" = "1-cell", "WT_two_cell_TE" = "2-cell", 
+                              "WT_four_cell_TE" = "4-cell", "WT_eight_cell_TE" = "8-cell")) +  geom_text_repel(data = gene_to_plot %>%
+                          filter(cell_stage == 'WT_eight_cell_TE'),
+                          aes(x = cell_stage, y = TE, label = gene_name),
+                          nudge_x = 0.1, inherit.aes = FALSE, na.rm = FALSE, size = 2, show.legend = F) +my_custom_theme() + theme(legend.position = 'none')
+```
+
+## OMA-1 vs WT examples
+
+```{r}
+plot_table <- as.data.frame(averaged_clr_TE)
+plot_table_long <- pivot_longer(plot_table, 
+                                cols = -gene_name, # Select all columns except gene_name for pivoting
+                                names_to = "cell_stage", 
+                                values_to = "TE")
+# Extract condition (WT or oma) and cell stage
+plot_table_long$condition <- ifelse(grepl("^WT", plot_table_long$cell_stage), "WT", "oma-1 (zu405)")
+plot_table_long$stage <- gsub("(WT|oma)_(.*)_TE", "\\2", plot_table_long$cell_stage)
+plot_table_long$stage <- factor(plot_table_long$stage, 
+                                levels = c("one_cell", "two_cell", "four_cell", "eight_cell"))
+# Select target gene and filter out eight_cell stage
+target_gene <- c("mom-2","zif-1")
+gene_to_plot <- plot_table_long |> 
+  filter(gene_name %in% target_gene) |>
+  filter(cell_stage %in% c("WT_one_cell_TE", "WT_two_cell_TE", "WT_four_cell_TE", 
+                           "oma_one_cell_TE", "oma_two_cell_TE", "oma_four_cell_TE")) |>
+  # Explicitly exclude eight_cell stage
+  filter(stage != "eight_cell")
+# Create the plot with different line types for WT and OMA
+WT_v_OMA_example <- ggplot(gene_to_plot, aes(x = stage, y = TE, color = gene_name, linetype = condition, group = interaction(gene_name, condition))) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  # Specify WT as solid and oma-1 (zu405) as dashed with proper labels
+  scale_linetype_manual(values = c("oma-1 (zu405)" = "dashed", "WT" = "solid"), name = "Genotype") +
+  scale_color_discrete(name = "Gene name") +  # Rename the color legend to "Gene name"
+  labs(y = "Normalized Translational Efficiency", x = "") +
+  scale_x_discrete(labels = c("one_cell" = "1-cell", "two_cell" = "2-cell", 
+                              "four_cell" = "4-cell")) +
+  my_custom_theme()
 ```
 
 ## P-granule vs Cell periphery
 
 ```{r}
+
+#gene candidates were identified from DM Parker et al 2020)(Development)
+
 target_gene_periphery <- c("erm-1","lem-3","ape-1","tes-1", "frm-7","frm-4", "ani-1")
 
 target_gene_granule <-c("chs-1","clu-1","ipgm-1","puf-3","cpg-2","nos-2","wsp-1","dyn-1","exoc-8","unc-112")
@@ -4159,6 +4376,7 @@ localization_of_mrna <- p +
 ## Somatic vs Germline comparison
 
 ```{r}
+
 plot_table <-  as.data.frame(averaged_clr_TE)
 
 plot_table_long <-  pivot_longer(plot_table, 
@@ -4275,7 +4493,7 @@ somatic_vs_germline_TE <- ggviolin(
   fill = "cell_type",
   color = "cell_type",  
   add = c("median_q1q3"),
-  add.params = list(size = 0.2)
+  add.params = list(size = 1)
 ) + 
   # Add significance brackets
   geom_segment(data = brackets,
@@ -4304,9 +4522,9 @@ somatic_vs_germline_TE <- ggviolin(
   theme(
     legend.position = "top", 
     legend.justification = 'center',
-    legend.text = element_text(size = unit(8,"pt")), 
-    legend.title = element_text(size = unit(8,'pt')), 
-    legend.key.size = unit(8,'pt')
+    legend.text = element_text(size = unit(20,"pt")), 
+    legend.title = element_text(size = unit(20,'pt')), 
+    legend.key.size = unit(20,'pt')
   )
 
 
@@ -4326,9 +4544,6 @@ summary_stats <- plot_dataset %>%
 print("\nSummary Statistics:")
 print(summary_stats)
 
-# what is the TE of transcripts actively in P-granule at each stage
-
-p_granule_table <- readxl::read_xlsx("/Users/yashshukla/Desktop/p-granule_localiztion.xlsx")
 
 
 # Merge full TE data with localization data
@@ -4479,7 +4694,7 @@ groupI_vs_II <- ggviolin(
   fill = "Group",
   color = "Group",
   add = c("median_q1q3"),
-  add.params = list(size = 0.2),
+  add.params = list(size = 1),
   width = 0.8
 ) + 
   geom_segment(data = brackets,
@@ -4493,11 +4708,11 @@ groupI_vs_II <- ggviolin(
   grids() +
   labs(x = "", 
        y = "Normalized Translational Efficiency",
-       fill = "Maintained in Z2 & Z3") +
+       fill ="") +
   scale_fill_manual(values = c(
     "Yes" = BURNT_ORANGE ,
     "No" = "#FFB366"),
-    labels = c("Yes", "No")) +
+    labels = c("Group I", "Group II")) +
   scale_color_manual(values = c(
     "Yes" = "black",
     "No" = "black"
@@ -4537,8 +4752,7 @@ wilcox_results <- group_long %>%
 print("\nWilcoxon Test Results (Group I vs Group II):")
 print(wilcox_results)
 
-
-
+total_genes <- 4905
 analyze_p_granule_enrichment <- function(stage_genes, stage_column) {
   # Get P-granule genes for this stage
   stage_p_granule_genes <- p_granule_table$gene_name[p_granule_table[[stage_column]] == "+"]
@@ -4608,10 +4822,6 @@ enrichment_results <- enrichment_results %>%
     CI_Lower = round(CI_Lower, 3),
     CI_Upper = round(CI_Upper, 3)
   )
-
-
-
-
 # First merge localization data with TE data
 TE_with_localization <- merge(averaged_clr_TE, p_granule_table, by = "gene_name")
 
@@ -4693,7 +4903,62 @@ wilcox_2to4 <- wilcox.test(transition_2to4$TE_difference, mu = 0)
 wilcox_4to8 <- wilcox.test(transition_4to8$TE_difference, mu = 0)
 
 
+##########
+# Assuming averaged_clr_TE contains WT_one_cell_TE and p_granule_table has the localization data
+TE_with_localization <- merge(averaged_clr_TE, p_granule_table, by = "gene_name")
 
+# First identify genes that transition from non-P-granule to P-granule between 2-cell and 4-cell
+transitioning_genes <- TE_with_localization %>%
+  dplyr::filter(`Puncta in P1 (2-cell)` == "-" & `Puncta in P2 (4-cell)` == "+") %>%
+  pull(gene_name)
+
+# Create long format data including 1-cell stage
+long_data <- TE_with_localization %>%
+  dplyr::filter(gene_name %in% transitioning_genes) %>%
+  dplyr::select(gene_name, 
+         WT_one_cell_TE, WT_two_cell_TE,
+         `Puncta in P1 (2-cell)`, `Puncta in P2 (4-cell)`) %>%
+  # Reshape TE values to long format
+  pivot_longer(
+    cols = starts_with("WT_"),
+    names_to = "stage",
+    values_to = "TE"
+  ) %>%
+  # Create clear stage names
+  mutate(
+    stage_name = case_when(
+      stage == "WT_one_cell_TE" ~ "1-cell",
+      stage == "WT_two_cell_TE" ~ "2-cell"
+    )
+  )
+
+# Calculate TE changes between 1-cell and 2-cell
+early_transition <- long_data %>%
+  pivot_wider(
+    id_cols = gene_name,
+    names_from = stage_name,
+    values_from = TE,
+    names_sep = "_"
+  ) %>%
+  mutate(TE_difference = `2-cell` - `1-cell`)
+
+# Perform Wilcoxon test
+wilcox_1to2 <- wilcox.test(early_transition$TE_difference, mu = 0)
+
+# Create boxplot
+ggplot(early_transition, aes(y = TE_difference, x = "1-cell to 2-cell")) +
+  geom_boxplot(fill = "#005f86", alpha = 0.7, width = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "", 
+       y = "Change in Translational Efficiency",
+       title = paste("P-value =", format.pval(wilcox_1to2$p.value, digits = 3))) +
+  my_custom_theme()
+
+# Print statistics
+print(paste("Number of transitioning genes:", length(transitioning_genes)))
+print(paste("Wilcoxon test p-value:", format.pval(wilcox_1to2$p.value, digits = 3)))
+
+##########
 # Function to convert p-values to stars
 get_stars <- function(p) {
   if(p <= 0.0001) return("****")
@@ -4793,7 +5058,7 @@ plot_data <- rbind(
 
 # Create the plot
 P_granule_lineplot<- ggplot(plot_data, aes(x = timepoint, y = mean_te, color = group, group = group)) +
-  geom_line(size = 1) +
+  geom_line(size = 1.5) +
   geom_errorbar(aes(ymin = mean_te - se, ymax = mean_te + se), width = 0.2) +
   geom_point(size = 3) +
   scale_color_manual(values = c(BURNT_ORANGE, "#A58D75")) +
@@ -4808,9 +5073,73 @@ P_granule_lineplot<- ggplot(plot_data, aes(x = timepoint, y = mean_te, color = g
   )+my_custom_theme()
 
 
+# Load required libraries
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+
+# Function to create a single Venn diagram
+create_venn <- function(pg_total, stage_total, overlap, title) {
+  # Calculate circle radii (scaled for visualization)
+  r1 <- sqrt(pg_total/pi) * 10
+  r2 <- sqrt(stage_total/pi) * 10
+  
+  # Calculate circle positions
+  # Distance between circles is adjusted to achieve the desired overlap
+  d <- sqrt(max(0, (r1 + r2)^2 - 4 * overlap/pi * 100))
+  
+  # Create circle data
+  t <- seq(0, 2*pi, length.out = 100)
+  
+  # P-granule circle
+  circle1 <- data.frame(
+    x = r1 * cos(t),
+    y = r1 * sin(t),
+    group = 1
+  )
+  
+  # Stage circle
+  circle2 <- data.frame(
+    x = d + r2 * cos(t),
+    y = r2 * sin(t),
+    group = 2
+  )
+  
+  # Create the plot
+  p <- ggplot() +
+    geom_path(data = circle1, aes(x = x, y = y), color = "#1B9E77", size = 1) +
+    geom_path(data = circle2, aes(x = x, y = y), color = "#D95F02", size = 1) +
+    coord_fixed() +
+    theme_void() +
+    ggtitle(title) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14)) +
+    annotate("text", x = -r1/2, y = 0, 
+             label = sprintf("P-granule\n(%d)", pg_total),
+             color = "#1B9E77") +
+    annotate("text", x = d + r2/2, y = 0, 
+             label = sprintf("Stage\n(%d)", stage_total),
+             color = "#D95F02") +
+    annotate("text", x = d/2, y = 0,
+             label = sprintf("Overlap\n%d", overlap))
+  
+  return(p)
+}
+
+# Create the three Venn diagrams
+p1 <- create_venn(245, 53, 2, "Two-cell Stage")
+p2 <- create_venn(326, 160, 31, "Four-cell Stage")
+p3 <- create_venn(389, 496, 125, "Eight-cell Stage")
+
+# Combine plots
+combined_plot <- grid.arrange(p1, p2, p3, ncol = 3)
+
+# Save the plot
+ggsave("/Users/yashshukla/Desktop/venn_diagrams.pdf", combined_plot, width = 15, height = 5)
 
 
 ```
+
+\
 
 # Effects of RNA-binding proteins
 
@@ -5780,17 +6109,27 @@ enrichment_df_mod <- enrichment_df_mod %>%
                          levels = unique(Description))
   )
 
+enrichment_df_mod <- enrichment_df_mod %>%
+  group_by(Description) %>%
+  mutate(
+    max_enrichment = max(enrichment_ratio),
+    distinctiveness = enrichment_ratio/max_enrichment,
+    sig_clusters = sum(p.adjust < 0.1),
+    # Use the actual Cluster value instead of creating a primary_cluster
+    cluster_numeric = as.numeric(factor(Cluster, levels = c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX")))
+  ) %>%
+  ungroup() %>%
+  arrange(cluster_numeric, desc(enrichment_ratio))
 
-# Filter to get top terms per cluster with balanced criteria
 filtered_df <- enrichment_df_mod %>%
-  # First ensure base significance and enrichment
   filter(p.adjust < 0.1, enrichment_ratio > 2) %>%
-  # Group by primary cluster and select top terms
-  group_by(primary_cluster) %>%
-  # Take top 4 terms per cluster 
-  # Ordering by combination of significance and enrichment
-  slice_head(n = 5) %>%  # This will give us ~36 terms total
-  ungroup()
+  group_by(Cluster) %>%
+  slice_head(n = 5) %>%
+  ungroup() %>%
+  mutate(Description = fct_reorder(Description, cluster_numeric))
+
+
+
 
 # Create new plot with filtered terms
 enrichment_plot_filtered <- ggplot(filtered_df, 
@@ -5818,8 +6157,7 @@ enrichment_plot_filtered <- ggplot(filtered_df,
     color = "-log10(adj.P)"
   )
 
-
-
+########
 
 
 ```
@@ -6012,7 +6350,7 @@ multimodal_enrichment_df_filtered <- as.data.frame(multimodal_cleaned_results) %
   ) %>%
   filter(enrichment_ratio > 2)
 
-# Export the enrichment table
+
 
 
 
@@ -6078,7 +6416,7 @@ multimodal_enrichment_plot <- ggplot(multimodal_filtered_df,
 ### Figure 1
 
 ```{r}
-
+dir.create("./output/Figures/Figure_1", recursive = TRUE, showWarnings = FALSE)
 figure_1_B <- region_counts_percent_mean_WT_plot  + my_custom_theme()+theme(legend.position = "top",legend.key.size = unit(5, "pt"),    legend.justification = "center",
     legend.box.just = "center",
     legend.text = element_text(size = unit(8,"pt"))) 
@@ -6244,7 +6582,7 @@ ggsave(
 ```{r}
 dir.create("./output/Figures/Figure_5", recursive = TRUE, showWarnings = FALSE)
 Figure_5_A <- OMA_1_pull_down_with_stats
-Figure_5_C <-  plot_TE_W1vO1 + plot_TE_W2vO2_oma + plot_TE_W4vO4_oma +plot_layout(axes = 'collect', guides = "collect") & ylab("log2FC TE")  & theme(legend.text = element_text(size = 8,angle = 45, hjust = 1),
+Figure_5_D <-  plot_TE_W1vO1 + plot_TE_W2vO2_oma + plot_TE_W4vO4_oma +plot_layout(axes = 'collect', guides = "collect") & ylab("log2FC TE")  & theme(legend.text = element_text(size = 8,angle = 45, hjust = 1),
           legend.title = element_text(size = 8),
         legend.position = "bottom",
 legend.direction = "horizontal",
@@ -6261,8 +6599,8 @@ ggsave(
     dpi = 600,
     bg = NULL) 
 ggsave(
-    "./output/Figures/Figure_5/Figure_5_C.pdf",
-    plot = Figure_5_C ,
+    "./output/Figures/Figure_5/Figure_5_D.pdf",
+    plot = Figure_5_D ,
     width = 200,
     height =100,
     units = c("mm"),
@@ -6318,7 +6656,6 @@ Figure_S1_B <- WT_ribo_correlation
 Figure_S1_C <- Ribo_mds_plot + labs(subtitle = "Ribosome Occupancy") + theme(plot.subtitle = element_text(hjust = 0.5))
 Figure_S1_D <- WT_rna_correlation
 Figure_S1_E <- RNA_MDS_plot +labs(subtitle = "RNA Abundance")+ theme(plot.subtitle = element_text(hjust = 0.5))
-Figure_S1_F <- combined_plot_8_cell
 
 Panel_S1_C_S1_E <-  Figure_S1_C + Figure_S1_E + plot_layout(ncol =1, guides = 'collect') & theme(legend.position = 'bottom',
     legend.box = "vertical",      
@@ -6351,15 +6688,7 @@ Panel_S1_B_S1_D <- Figure_S1_B + Figure_S1_D + plot_layout(ncol=1, guides = 'col
     units = c("mm"),
     dpi = 600,
     bg = NULL)
-  ggsave(
-    "./output/Figures/Figure_S1/Figure_S1_F.pdf",
-    plot = Figure_S1_F,
-    width =185,
-    height =90,
-    units = c("mm"),
-    dpi = 600,
-    bg = NULL)
- 
+
  
 ```
 
@@ -6367,26 +6696,115 @@ Panel_S1_B_S1_D <- Figure_S1_B + Figure_S1_D + plot_layout(ncol=1, guides = 'col
 
 ```{r}
 dir.create("./output/Figures/Figure_S2", recursive = TRUE, showWarnings = FALSE)
+Figure_S2_A <- combined_plot_8_cell
+
+Figure_S2B_B_C <- Lee_et_al_elife_2020_ribo_v_rna + Quarato_et_al_natcom_2021_gene_of_int
+
+  ggsave(
+    "./output/Figures/Figure_S1/Figure_S2_A.pdf",
+    plot = Figure_S2_A,
+    width =180,
+    height =180,
+    units = c("mm"),
+    dpi = 600,
+    bg = NULL)
+ 
+
+ggsave(
+    "./output/Figures/Figure_S2/Figure_S2_B_C.pdf",
+    plot = Figure_S2B_B_C,
+    width = 190,
+    height =90,
+    units = c("mm"),
+    dpi = 600,
+    bg = NULL)
+```
+
+### Figure S3
+
+```{r}
+dir.create("./output/Figures/Figure_S3", recursive = TRUE, showWarnings = FALSE)
 plot_Ribo_2v1 <- plot_Ribo_2v1 + labs(subtitle = "2-cell vs 1-cell")
 plot_Ribo_4v2 <- plot_Ribo_4v2 + labs(subtitle = "4-cell vs 2-cell")
 plot_Ribo_8v4 <- plot_Ribo_8v4 + labs(subtitle = "8-cell vs 4-cell")
-Figure_S2_A <- plot_Ribo_2v1 + plot_Ribo_4v2 + plot_Ribo_8v4 + plot_layout(axes = 'collect', guides = 'collect') & ylab("Log2(FC) Ribosome Occupancy")
 
-Figure_S2_B <- plot_RNA_8v1 + plot_Ribo_8v1 + plot_TE_8v1 +plot_layout(axes = 'collect', guides = 'collect') 
+
+Figure_S3_A <- plot_RNA_8v1 + plot_Ribo_8v1 + plot_TE_8v1 +plot_layout(axes = 'collect', guides = 'collect') 
+
+Figure_S3_B <- plot_Ribo_2v1 + plot_Ribo_4v2 + plot_Ribo_8v4 + plot_layout(axes = 'collect', guides = 'collect') & ylab("Log2(FC) Ribosome Occupancy")
+Figure_S3_C <- yash_vs_quarato_all 
+Figure_S3_D <-  yash_vs_lee_all
+
+
 
 ggsave(
-    "./output/Figures/Figure_S2/Figure_S2_A.pdf",
-    plot = Figure_S2_A,
+    "./output/Figures/Figure_S3/Figure_S3_A.pdf",
+    plot = Figure_S3_A,
     width =180,
-    height =90,
+    height =75,
     units = c("mm"),
     dpi = 600,
     bg = NULL) 
 
 ggsave(
-    "./output/Figures/Figure_S2/Figure_S2_B.pdf",
-    plot = Figure_S2_B,
+    "./output/Figures/Figure_S3/Figure_S3_B.pdf",
+    plot = Figure_S3_B,
     width =180,
+    height =75,
+    units = c("mm"),
+    dpi = 600,
+    bg = NULL) 
+
+ggsave(
+    "./output/Figures/Figure_S3/Figure_S3_C.pdf",
+    plot = Figure_S3_C  ,
+    width =180,
+    height =65,
+    units = c("mm"),
+    dpi = 600,
+    bg = NULL) 
+ggsave(
+    "./output/Figures/Figure_S3/Figure_S3_D.pdf",
+    plot = Figure_S3_D  ,
+    width =180,
+    height =65,
+    units = c("mm"),
+    dpi = 600,
+    bg = NULL) 
+
+```
+
+### Figure S4
+
+```{r}
+dir.create("./output/Figures/Figure_S4", recursive = TRUE, showWarnings = FALSE)
+
+Figure_S4_A <- example_from_publication 
+
+
+ggsave(
+    "./output/Figures/Figure_S4/Figure_S4_A.pdf",
+    plot = Figure_S4_A ,
+    width =110,
+    height =80,
+    units = c("mm"),
+    dpi = 600,
+    bg = NULL) 
+```
+
+### Figure S5
+
+```{r}
+dir.create("./output/Figures/Figure_S5", recursive = TRUE, showWarnings = FALSE)
+Figure_S5_A <- p_granule_all_violin  
+Figure_S5_B <- P_granule_boxplot 
+
+Panel_S5A_S5B <- Figure_S5_A + Figure_S5_B 
+
+ggsave(
+    "./output/Figures/Figure_S5/Panel_S5A_S5B.pdf",
+    plot = Panel_S5A_S5B ,
+    width = 190,
     height =100,
     units = c("mm"),
     dpi = 600,
@@ -6394,40 +6812,24 @@ ggsave(
 
 ```
 
-### Figure S3
+### 
 
-```{r}
-dir.create("./output/Figures/Figure_S3", recursive = TRUE, showWarnings = FALSE)
-
-Figure_S3_A <- example_from_publication 
-
-
-ggsave(
-    "./output/Figures/Figure_S3/Figure_S3_A.pdf",
-    plot = Figure_S3_A ,
-    width =200,
-    height =120,
-    units = c("mm"),
-    dpi = 600,
-    bg = NULL) 
-```
-
-### Figure S4
+### Figure S6
 
 ```{r}
 
-dir.create("./output/Figures/Figure_S4", recursive = TRUE, showWarnings = FALSE)
-Figure_S4_A <- gld_1_pull_down_with_stats 
-Figure_S4_B <- pos_1_motif_plot_with_stats
-Figure_S4_C <- mex_3_motif_plot_with_stats 
-Figure_S4_D <- gld_1_motif_plot_with_stats
-Figure_S4_E <- lin_41_motif_plot_with_stats 
+dir.create("./output/Figures/Figure_S6", recursive = TRUE, showWarnings = FALSE)
+Figure_S6_A <- gld_1_pull_down_with_stats 
+Figure_S6_B <- pos_1_motif_plot_with_stats
+Figure_S6_C <- mex_3_motif_plot_with_stats 
+Figure_S6_D <- gld_1_motif_plot_with_stats
+Figure_S6_E <- lin_41_motif_plot_with_stats 
 
-Panel_S4 <- wrap_plots(Figure_S4_A,Figure_S4_B,Figure_S4_C,Figure_S4_D,Figure_S4_E) + plot_layout(axis_titles = 'collect', ncol = 2) 
+Panel_S6 <- wrap_plots(Figure_S6_A,Figure_S6_B,Figure_S6_C,Figure_S6_D,Figure_S6_E) + plot_layout(axis_titles = 'collect', ncol = 2) 
 
 ggsave(
-    "./output/Figures/Figure_S4/Panel_S4.pdf",
-    plot = Panel_S4,
+    "./output/Figures/Figure_S7/Panel_S7.pdf",
+    plot = Panel_S7,
     width =180,
     height =220,
     units = c("mm"),
@@ -6436,42 +6838,42 @@ ggsave(
   
 ```
 
-### Figure S5
+### Figure S7
 
 ```{r}
-dir.create("./output/Figures/Figure_S5", recursive = TRUE, showWarnings = FALSE)
-Figure_S5_A <- region_counts_percent_mean_OMA_plot
+dir.create("./output/Figures/Figure_S7", recursive = TRUE, showWarnings = FALSE)
+Figure_S7_A <- region_counts_percent_mean_OMA_plot
 
-Figure_S5_B <- start_site_OMA  + stop_site_OMA + plot_layout(guides = 'collect',axes  = "collect")  &theme(legend.position = "top")
+Figure_S7_B <- start_site_OMA  + stop_site_OMA + plot_layout(guides = 'collect',axes  = "collect")  &theme(legend.position = "top")
 
-Figure_S5_C <- read_length_distribution_plot_OMA +theme(legend.position = "top",legend.justification = "center")
+Figure_S7_C <- read_length_distribution_plot_OMA +theme(legend.position = "top",legend.justification = "center")
 
-Figure_S5_D <- OMA_ribo_correlation
-Figure_S5_E <- OMA_rna_correlation
-Figure_S5_F <- OMA_1_pull_down_mutant_with_stats 
-Figure_S5_G <- oma_one_cell_WT_RNA_vs_RIBO_plot+
+Figure_S7_D <- OMA_ribo_correlation
+Figure_S7_E <- OMA_rna_correlation
+Figure_S7_F <- OMA_1_pull_down_mutant_with_stats 
+Figure_S7_G <- oma_one_cell_WT_RNA_vs_RIBO_plot+
   oma_two_cell_WT_RNA_vs_RIBO_plot+
   oma_four_cell_WT_RNA_vs_RIBO_plot+
   plot_layout(guides = "collect", axes = "collect", ncol = 3)&theme(legend.position = "none", plot.subtitle = element_text(size = unit(8,"pt")))&xlab("Mean RNA abundance (CPM)")&ylab("Mean Ribosome Occupancy (CPM)") 
 
 
-Panel_S5A_S5B_S5C_S5F <- Figure_S5_A + Figure_S5_B + Figure_S5_C +Figure_S5_F + plot_layout(ncol = 1)
+Panel_S7A_S7B_S7C_S7F <- Figure_S7_A + Figure_S7_B + Figure_S7_C +Figure_S7_F + plot_layout(ncol = 1)
 
-Panel_S5D_S5E <- Figure_S5_D + Figure_S5_E  +plot_layout(ncol = 1, guides = 'collect') & theme(legend.position = "bottom", legend.justification = "center")
+Panel_S7D_S7E <- Figure_S7_D + Figure_S7_E  +plot_layout(ncol = 1, guides = 'collect') & theme(legend.position = "bottom", legend.justification = "center")
 
-Panel_S5D_S5E_S5G <-wrap_plots( Panel_S5D_S5E,Figure_S5_G ) + plot_layout(ncol =1,heights = c(3, 1) )
+Panel_S7D_S7E_S7G <-wrap_plots( Panel_S7D_S7E,Figure_S7_G ) + plot_layout(ncol =1,heights = c(3, 1) )
 
 ggsave(
-    "./output/Figures/Figure_S5/Panel_S5A_S5B_S5C_S5F.pdf",
-    plot = Panel_S5A_S5B_S5C_S5F ,
+    "./output/Figures/Figure_S7/Panel_S7A_S7B_S7C_S7F.pdf",
+    plot = Panel_S7A_S7B_S7C_S7F ,
     width =95,
     height =290,
     units = c("mm"),
     dpi = 600,
     bg = NULL) 
 ggsave(
-    "./output/Figures/Figure_S5/Figure_S5_G.pdf",
-    plot = Figure_S5_G ,
+    "./output/Figures/Figure_S7/Figure_S7_G.pdf",
+    plot = Figure_S7_G ,
     width =110,
     height =60,
     units = c("mm"),
@@ -6479,8 +6881,8 @@ ggsave(
     bg = NULL) 
 
 ggsave(
-    "./output/Figures/Figure_S5/Panel_S5D_S5E.pdf",
-    plot = Panel_S5D_S5E ,
+    "./output/Figures/Figure_S7/Panel_S7D_S7E.pdf",
+    plot = Panel_S7D_S7E ,
     width =110,
     height =60,
     units = c("mm"),
@@ -6492,10 +6894,10 @@ ggsave(
 
 ```
 
-### Figure S6
+### Figure S8
 
 ```{r}
-dir.create("./output/Figures/Figure_S6", recursive = TRUE, showWarnings = FALSE)
+dir.create("./output/Figures/Figure_S8", recursive = TRUE, showWarnings = FALSE)
 plot_RNA_W1vO1 <- plot_RNA_W1vO1 + labs(subtitle = "RNA abundance")
 plot_Ribo_W1vO1 <-plot_Ribo_W1vO1 + labs(subtitle = "Ribosome Occupancy")
 
@@ -6515,7 +6917,7 @@ plot_Ribo_O2vO1 <- plot_Ribo_O2vO1 + theme(axis.title.x = element_blank())
 # Don't modify x-axis titles for the bottom row (O4vO2)
 
 # Create the combined figure
-Panel_S6_raw <- (
+Panel_S8_raw <- (
   (plot_RNA_W1vO1 + plot_Ribo_W1vO1 + plot_layout(nrow = 1)) /
   (plot_RNA_W2vO2 + plot_Ribo_W2vO2 + plot_layout(nrow = 1)) /
   (plot_RNA_W4vO4 + plot_Ribo_W4vO4 + plot_layout(nrow = 1)) /
@@ -6524,38 +6926,29 @@ Panel_S6_raw <- (
 )
 
 # Final panel with collected guides at bottom
-Panel_S6 <- Panel_S6_raw + 
+Panel_S8 <- Panel_S8_raw + 
   plot_layout(guides = "collect",) & 
   theme(legend.position = "bottom")
 
 ggsave(
-    "./output/Figures/Figure_S6/Panel_S6.pdf",
-    plot = Panel_S6 ,
-    width =180,
-    height =270,
+    "./output/Figures/Figure_S8/Panel_S8.pdf",
+    plot = Panel_S8 ,
+    width =170,
+    height =240,
     units = c("mm"),
     dpi = 600,
     bg = NULL) 
 
-```
-
-### Figure S7
-
-```{r}
-Figure_S7_A <- p_granule_all_violin  
-Figure_S7_B <- P_granule_boxplot 
-
-Panel_S7A_S7B <- Figure_S7_A + Figure_S7_B 
+Figure_S8_F <- WT_v_OMA_example 
 
 ggsave(
-    "./output/Figures/Figure_S7/Panel_S7A_S7B.pdf",
-    plot = Panel_S7A_S7B ,
-    width = 190,
-    height =100,
+    "./output/Figures/Figure_S8/Figure_S8_F.pdf",
+    plot = Figure_S8_F  ,
+    width =140,
+    height =70,
     units = c("mm"),
     dpi = 600,
     bg = NULL) 
-
 ```
 
 ## Tables
