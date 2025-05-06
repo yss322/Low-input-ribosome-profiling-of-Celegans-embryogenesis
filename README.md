@@ -1,6 +1,6 @@
 # Ribosome Profiling Analysis Pipeline
 
-This repository contains the analysis pipeline for ribosome profiling and RNA-seq data examining translational regulation during early C. elegans development in wild-type and OMA-1(zu405) mutant embryos.
+This repository contains the analysis pipeline for ribosome profiling and RNA-seq data examining translational regulation during early C. elegans development in wild-type and OMA-1(zu405) mutant embryos. You can find the TE values of the genes analyzed in this dataset in the Excel file average_clr_TE.xlsx
 
 ## Overview
 
