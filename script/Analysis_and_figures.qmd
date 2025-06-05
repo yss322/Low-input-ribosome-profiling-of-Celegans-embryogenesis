@@ -486,7 +486,7 @@ spike_et_al_2014_1290 <- readxl::read_xlsx("./input_data/genetics.114.168823-7.x
 spike_et_al_2014_1290_clean <- unique(na.omit(spike_et_al_2014_1290 ))
 oma_bound_list <- spike_et_al_2014_1290_clean$Ensembl
 
-ensembl <- useMart("ensembl", dataset = "celegans_gene_ensembl")
+
 ensembl <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", 
                    host = "https://nov2020.archive.ensembl.org", 
                    dataset = "celegans_gene_ensembl")
@@ -2397,7 +2397,7 @@ colnames(rnaseq_w_diff) <- c("transcript" ,
 
 ## Clean-up and processing raw counts
 
-We remove the histone genes and also rename the long transcript names. The reason for removing histone genes is that we used polyA tail based RT instead of random hexamers. Histone mRNA don't have polyA tails in *C. elegans.*
+We remove the histone genes and also rename the long transcript names. The reason for removing histone genes is that we used polyA tail based RT instead of random hexamers. A lot of histone mRNA don't have polyA tails in *C. elegans.*
 
 ```{r}
 #Import Raw counts: 
@@ -3360,7 +3360,10 @@ my.contrasts <- makeContrasts(
   RiboO4vsW4 = omafourcell.RIBO - fourcell.RIBO,
   RiboO2vsO1 = omatwocell.RIBO - omaonecell.RIBO,
   RiboO4vsO2 = omafourcell.RIBO - omatwocell.RIBO,
-  levels = design
+
+    Ribofourvsone =  fourcell.RIBO - onecell.RIBO  ,
+    RiboO4vsO1 = omafourcell.RIBO - omaonecell.RIBO,
+    levels = design
 )
 
 qlf_Ribo_two_vs_one <- glmQLFTest(fit, contrast=my.contrasts[,"Ribotwovsone"])  
@@ -3373,6 +3376,9 @@ qlf_Ribo_oma_WT_fourcell <- glmQLFTest(fit, contrast=my.contrasts[,"RiboO4vsW4"]
 qlf_Ribo_omatwovsone <-glmQLFTest(fit, contrast=my.contrasts[,"RiboO2vsO1"]) 
 qlf_Ribo_omafourvstwo <-glmQLFTest(fit, contrast=my.contrasts[,"RiboO4vsO2"]) 
 
+
+qlf_Ribo_four_vs_one <- glmQLFTest(fit, contrast=my.contrasts[,"Ribofourvsone"]) 
+qlf_Ribo_omafourvsone <-glmQLFTest(fit, contrast=my.contrasts[,"RiboO4vsO1"]) 
 
 adjusted_table_RNA_MDS <- adjusted_table_RNA
 colnames(adjusted_table_RNA_MDS) <- c("gene_name",
@@ -3426,7 +3432,9 @@ my.contrasts <- makeContrasts(
   RNAO4vsW4 = omafourcell.RNA - fourcell.RNA,
   RNAO2vsO1 = omatwocell.RNA - omaonecell.RNA,
   RNAO4vsO2 = omafourcell.RNA - omatwocell.RNA,
-  levels = design
+ RNAfourvsone =  fourcell.RNA - onecell.RNA  ,
+RNAO4vsO1 = omafourcell.RNA - omaonecell.RNA,
+   levels = design
 )
 
 
@@ -3439,6 +3447,12 @@ qlf_RNA_oma_WT_twocell <- glmQLFTest(fit, contrast=my.contrasts[,"RNAO2vsW2"])
 qlf_RNA_oma_WT_fourcell <- glmQLFTest(fit, contrast=my.contrasts[,"RNAO4vsW4"]) 
 qlf_RNA_omatwovsone <-glmQLFTest(fit, contrast=my.contrasts[,"RNAO2vsO1"]) 
 qlf_RNA_omafourvstwo <-glmQLFTest(fit, contrast=my.contrasts[,"RNAO4vsO2"]) 
+
+
+
+qlf_RNA_four_vs_one <- glmQLFTest(fit, contrast=my.contrasts[,"RNAfourvsone"]) 
+
+qlf_RNA_omafourvsone <-glmQLFTest(fit, contrast=my.contrasts[,"RNAO4vsO1"]) 
 
 #Translational effieciency 
 
@@ -3482,6 +3496,8 @@ my.contrasts <- makeContrasts(
   TEO4vsW4 = (omafourcell.RIBO - fourcell.RIBO-(omafourcell.RNA - fourcell.RNA)),
   TEO2vsO1 = (omatwocell.RIBO - omaonecell.RIBO)-(omatwocell.RNA - omaonecell.RNA),
   TEO4vsO2 = (omafourcell.RIBO - omatwocell.RIBO)-(omafourcell.RNA - omatwocell.RNA),
+  TEfourvsone =  (fourcell.RIBO - onecell.RIBO)- (fourcell.RNA - onecell.RNA)  ,
+    TEO4vsO1 = (omafourcell.RIBO - omaonecell.RIBO)-(omafourcell.RNA - omaonecell.RNA),
   levels = design
 )
 qlf_TE_two_vs_one <- glmQLFTest(fit, contrast=my.contrasts[,"TEtwovsone"])  
@@ -3493,6 +3509,14 @@ qlf_TE_oma_WT_twocell <- glmQLFTest(fit, contrast=my.contrasts[,"TEO2vsW2"])
 qlf_TE_oma_WT_fourcell <- glmQLFTest(fit, contrast=my.contrasts[,"TEO4vsW4"]) 
 qlf_TE_omatwovsone <-glmQLFTest(fit, contrast=my.contrasts[,"TEO2vsO1"]) 
 qlf_TE_omafourvstwo <-glmQLFTest(fit, contrast=my.contrasts[,"TEO4vsO2"]) 
+
+
+
+
+
+qlf_TE_four_vs_one <- glmQLFTest(fit, contrast=my.contrasts[,"TEfourvsone"]) 
+
+qlf_TE_omafourvsone <-glmQLFTest(fit, contrast=my.contrasts[,"TEO4vsO1"]) 
 ```
 
 ### Mean difference plot
@@ -3530,7 +3554,13 @@ contrast_list <- list(
   qlf_TE_omatwovsone = qlf_TE_omatwovsone,
   qlf_RNA_omafourvstwo = qlf_RNA_omafourvstwo,
   qlf_Ribo_omafourvstwo = qlf_Ribo_omafourvstwo,
-  qlf_TE_omafourvstwo = qlf_TE_omafourvstwo
+  qlf_TE_omafourvstwo = qlf_TE_omafourvstwo,
+  qlf_RNA_omafourvstone = qlf_RNA_omafourvsone,
+  qlf_Ribo_omafourvsone = qlf_Ribo_omafourvsone,
+  qlf_TE_omafourvsone = qlf_TE_omafourvsone,
+    qlf_RNA_four_vs_one = qlf_RNA_four_vs_one,
+  qlf_Ribo_four_vs_one = qlf_Ribo_four_vs_one,
+  qlf_TE_four_vs_one = qlf_TE_four_vs_one
 )
 ```
 
@@ -4084,7 +4114,12 @@ averaged_clr_TE <- averaged_clr_data %>%
     oma_four_cell_TE = oma_four_cell.ribo - oma_four_cell.rna
   ) %>%
   dplyr::select(gene_name, WT_one_cell_TE, WT_two_cell_TE, WT_four_cell_TE, WT_eight_cell_TE,
-         oma_one_cell_TE, oma_two_cell_TE, oma_four_cell_TE) 
+         oma_one_cell_TE, oma_two_cell_TE, oma_four_cell_TE)  
+
+averaged_clr_TE_RIBO_RNA <- merge(averaged_clr_TE,averaged_clr_data, by ="gene_name")
+
+write_csv(averaged_clr_TE,"average_clr_TE.csv") 
+write_csv(averaged_clr_TE_RIBO_RNA,"averaged_clr_TE_RIBO_RNA.csv")
 # Reshape the data for plotting
 averaged_clr_data_long <- averaged_clr_TE  %>%
   pivot_longer(-gene_name, names_to = "condition", values_to = "CLR")
@@ -5939,12 +5974,17 @@ wt_gene_counts <- combined_results %>%
 wt_cluster_profiles$wt_cluster <- factor(wt_cluster_profiles$wt_cluster, 
                                          levels = desired_order)
 
+
+
 # Create the plot
 wt_plot <- ggplot(wt_cluster_profiles, aes(x = stage, y = mean_centered_CLR, group = 1)) +
   geom_line(color = "black") +
-  geom_pointrange(aes(ymin = mean_centered_CLR - se_value, 
-                      ymax = mean_centered_CLR + se_value), 
-                  size = 0.1, color = "black") +
+  geom_errorbar(aes(ymin = mean_centered_CLR - se_value, 
+                    ymax = mean_centered_CLR + se_value), 
+                width = 0.65,     # width of the error bar caps
+                linewidth = 0.4,      # thickness of error bar lines
+                color = "red") + # color of error bars only
+  geom_point(size = 0.6, color = "black") +  # separate control of points
   facet_wrap(~ wt_cluster, nrow = 1, 
              labeller = labeller(wt_cluster = setNames(wt_gene_counts$label, wt_gene_counts$wt_cluster))) +
   coord_cartesian(ylim = c(-2.5, 2.5)) +
@@ -5959,7 +5999,6 @@ wt_plot <- ggplot(wt_cluster_profiles, aes(x = stage, y = mean_centered_CLR, gro
     strip.text = element_text(size = 8),
     legend.position = "none"
   )
-
 
 # check the respective ribooccupancy and RNA
 clr_ribo_rna_clust <- merge(averaged_clr_data[,c(1:9)], combined_results, by = "gene_name")
@@ -6004,17 +6043,19 @@ gene_counts <- clr_ribo_rna_clust %>%
     label = paste0("Cluster ", roman_numeral, "\n(", n, " genes)")
   )
 
-# Step 4: Create the plot
 ribo_rna_cluster <- ggplot(cluster_profiles, aes(x = cell_stage, y = mean_relative_value, color = data_type, group = data_type)) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
   geom_line() +
-  geom_pointrange(aes(ymin = mean_relative_value - se_value, 
-                      ymax = mean_relative_value + se_value), 
-                  size = 0.2) +
+  geom_errorbar(aes(ymin = mean_relative_value - se_value, 
+                    ymax = mean_relative_value + se_value), 
+                width = 0.65,     # width of the error bar caps (matching wt_plot)
+                linewidth = 0.4,  # thickness of error bar lines (matching wt_plot)
+                color = "red") +   # red error bars (matching wt_plot)
+  geom_point(size = 0.6) +  # separate control of points (matching wt_plot size)
   facet_wrap(~ wt_cluster, nrow = 1, 
              labeller = labeller(wt_cluster = setNames(gene_counts$label, gene_counts$wt_cluster))) +
   scale_color_manual(values = c("ribo" = ribo_orange, "rna" = rna_blue),
-                    labels = c("ribo" = "Ribosome Occupancy", "rna" = "RNA abundance")) +
+                     labels = c("ribo" = "Ribosome Occupancy", "rna" = "RNA abundance")) +
   scale_x_discrete(limits = c("1", "2", "4", "8")) +
   coord_cartesian(ylim = c(-2.5, 2.5)) +
   labs(
@@ -6026,8 +6067,36 @@ ribo_rna_cluster <- ggplot(cluster_profiles, aes(x = cell_stage, y = mean_relati
   theme(
     strip.background = element_rect(fill = "white"),
     strip.text = element_text(size = 0),
-   legend.position = c(0.25, 0.95),
-   legend.direction = "horizontal"   
+    legend.position = c(0.25, 0.95),
+    legend.direction = "horizontal"   
+  )
+
+
+ribo_rna_cluster <- ggplot(cluster_profiles, aes(x = cell_stage, y = mean_relative_value, color = data_type, group = data_type)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_relative_value - se_value, 
+                    ymax = mean_relative_value + se_value), 
+                width = 0.65,     # width of the error bar caps (matching wt_plot)
+                linewidth = 0.4) + # thickness of error bar lines, color inherited from aes
+  geom_point(size = 0.6) +  # separate control of points (matching wt_plot size)
+  facet_wrap(~ wt_cluster, nrow = 1, 
+             labeller = labeller(wt_cluster = setNames(gene_counts$label, gene_counts$wt_cluster))) +
+  scale_color_manual(values = c("ribo" = ribo_orange, "rna" = rna_blue),
+                     labels = c("ribo" = "Ribosome Occupancy", "rna" = "RNA abundance")) +
+  scale_x_discrete(limits = c("1", "2", "4", "8")) +
+  coord_cartesian(ylim = c(-2.5, 2.5)) +
+  labs(
+    y = "Relative to 1-cell",
+    x = "Cell-stage",
+    color = "Data Type"
+  ) +
+  my_custom_theme() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    strip.text = element_text(size = 0),
+    legend.position = c(0.25, 0.95),
+    legend.direction = "horizontal"   
   )
 
 
@@ -6280,13 +6349,16 @@ multimodal_cluster_profiles <- plot_data %>%
   ) %>%
   mutate(combined_cluster = factor(combined_cluster, levels = multimodal_desired_order))
 
+
 # Create the main plot
 multimodal_plot <- ggplot(multimodal_cluster_profiles, 
                           aes(x = stage, y = mean_normalized_CLR, color = condition, group = condition)) +
   geom_line() +
-  geom_pointrange(aes(ymin = mean_normalized_CLR - se_value,
-                      ymax = mean_normalized_CLR + se_value),
-                  size = 0.1) +
+  geom_errorbar(aes(ymin = mean_normalized_CLR - se_value,
+                    ymax = mean_normalized_CLR + se_value),
+                width = 0.25,     # width of the error bar caps (matching wt_plot)
+                linewidth = 0.4) + # thickness of error bar lines, color inherited from aes
+  geom_point(size = 0.6) +  # separate control of points (matching wt_plot size)
   facet_wrap(~ combined_cluster, nrow = 1,
              labeller = labeller(combined_cluster = setNames(multimodal_gene_counts$label,
                                       multimodal_gene_counts$combined_cluster))) +
@@ -6304,6 +6376,7 @@ multimodal_plot <- ggplot(multimodal_cluster_profiles,
     strip.text = element_text(size = 8),
     legend.position = "right"
   )
+
 
 # Create gene lists for enrichment analysis
 multimodal_gene_lists <- lapply(multimodal_desired_order, function(cluster) {
