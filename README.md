@@ -109,9 +109,26 @@ Celegans_translation_git/
 - Linear modeling of binding effects
 
 ## Running the Analysis
+### Prerequisites
+
+This repository uses [Git LFS](https://git-lfs.com/) to store large data files (`.ribo`, `.fa`, and other input files). You must have Git LFS installed **before cloning** to get the actual data files instead of small pointer stubs.
+
+**Install Git LFS:**
+
+- **macOS:** `brew install git-lfs`
+- **Ubuntu/Debian:** `sudo apt install git-lfs`
+- **Windows:** included with [Git for Windows](https://git-scm.com/download/win), or download from [git-lfs.com](https://git-lfs.com/)
+
+Then register the LFS filters (only needs to be done once per machine):
+
+```bash
+git lfs install
+```
+
 
 ### Quick Start
 1. Clone this repository:
+Ensure that you have git LFS
 ```bash
 git clone https://github.com/yss322/Low-input-ribosome-profiling-of-Celegans-embryogenesis.git
 cd Celegans_translation_git
