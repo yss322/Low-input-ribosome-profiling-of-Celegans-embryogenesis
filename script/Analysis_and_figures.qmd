@@ -487,9 +487,11 @@ spike_et_al_2014_1290_clean <- unique(na.omit(spike_et_al_2014_1290 ))
 oma_bound_list <- spike_et_al_2014_1290_clean$Ensembl
 
 
-ensembl <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", 
-                   host = "https://nov2020.archive.ensembl.org", 
-                   dataset = "celegans_gene_ensembl")
+ensembl <- useEnsembl(
+  biomart = "ensembl",
+  dataset = "celegans_gene_ensembl",
+  mirror = "useast"   # or "uswest", "asia", "www"
+)
 att <- listAttributes(ensembl)
 results <- getBM(attributes = c('external_gene_name','wormbase_transcript','wormbase_gene'), 
                  mart = ensembl)
@@ -5226,9 +5228,11 @@ UTR3_all$oma_pull_down <- ifelse(UTR3_all$gene_name %in% oma$gene_name, 1, 0)
 We also use GLD-1 data but first we must convert the gene names
 
 ```{r}
-ensembl <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", 
-                   host = "https://nov2020.archive.ensembl.org", 
-                   dataset = "celegans_gene_ensembl")
+ensembl <- useEnsembl(
+  biomart = "ensembl",
+  dataset = "celegans_gene_ensembl",
+  mirror = "useast"   # or "uswest", "asia", "www"
+)
 att <- listAttributes(ensembl)
 results <- getBM(attributes = c('external_gene_name','wormbase_transcript'), 
                  mart = ensembl)
@@ -5243,6 +5247,9 @@ gld_pulldown <- unique(gld_pulldown)
 UTR3_all$gld_pulldown <- ifelse(UTR3_all$gene_name %in% gld_pulldown$external_gene_name, 1, 0)
 ```
 
+\
+\
+\
 We create a linear model to assess the effects of the presence of RNA-binding motifs or pull-down with RNA-binding proteins
 
 ```{r}
