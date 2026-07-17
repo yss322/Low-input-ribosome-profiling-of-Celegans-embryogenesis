@@ -17,8 +17,10 @@ const raw = await FileAttachment("data/averaged_clr_all.csv").csv({typed: true})
 
 ```js
 const geneNames = raw.map(d => d.gene_name).sort();
-const gene = view(Inputs.select(geneNames, {value: "par-3", label: "Gene"}));
+const gene = view(Inputs.text({label: "Gene", placeholder: "Type a gene name…", value: "par-3", datalist: geneNames}));
 ```
+
+<p style="font-size:12px; color:#888; margin-top:-8px">Search from ${raw.length} genes with detectable ribosome occupancy and mRNA in early embryos. See <a href="./about">About</a> for details.</p>
 
 ```js
 const stages = ["1-cell", "2-cell", "4-cell", "8-cell"];
