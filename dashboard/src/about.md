@@ -57,6 +57,12 @@ The TE data uses common names (`par-3`, `nos-2`). The Tintori data uses systemat
 
 ---
 
+## Tools
+
+The ribosome profiling data was processed using [RiboFlow](https://ribosomeprofiling.github.io/) — a software ecosystem for ribosome profiling that works at footprint-length resolution. It includes a pipeline (RiboFlow) and two interfaces (RiboR, RiboPy).
+
+---
+
 ## Citation
 
 > Shukla et al. (2025). Landscape and regulation of mRNA translation in the early *C. elegans* embryo. *Cell Reports*, 44(4).
