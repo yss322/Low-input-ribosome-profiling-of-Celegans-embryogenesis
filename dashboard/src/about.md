@@ -49,6 +49,8 @@ display(html`<img src="${await FileAttachment("data/img/example_embryo.png").url
 - Cells at each stage: P0 → AB/P1 → ABa/ABp/EMS/P2 → ABal/ABar/ABpl/ABpr/MS/E/C/P3
 - This shows mRNA only, not where translation occurs.
 
+> **Disclaimer:** This embryo visualization was re-created from the original DrEdGE tool by Sophie Tintori, [tintori.bio.unc.edu](https://tintori.bio.unc.edu/about.html). Please refer to that site to explore and access the full per-cell RNA expression data.
+
 ---
 
 ## Gene Names

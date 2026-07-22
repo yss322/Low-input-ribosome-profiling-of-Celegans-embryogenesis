@@ -2,6 +2,14 @@
 
 This repository contains the analysis pipeline for ribosome profiling and RNA-seq data examining translational regulation during early C. elegans development in wild-type and OMA-1(zu405) mutant embryos. You can find the TE values of the genes analyzed in this dataset in the Excel file average_clr_TE.xlsx
 
+## 🔎 Interactive Dashboard
+
+Explore the data gene-by-gene in the interactive **TE Explorer**:
+
+**➡️ https://yss322.github.io/Low-input-ribosome-profiling-of-Celegans-embryogenesis/**
+
+Search for any of the 4,905 genes to view its translational efficiency, ribosome occupancy, and mRNA abundance across the 1- to 8-cell stages, alongside its spatial mRNA localization in the embryo (per-cell, from Tintori et al. 2016). Source code lives in the [`dashboard/`](dashboard/) directory (built with [Observable Framework](https://observablehq.com/framework/)).
+
 ## Overview
 
 The analysis examines:
