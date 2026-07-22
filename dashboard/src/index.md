@@ -249,6 +249,12 @@ heading.style.cssText = "margin:0 0 8px";
 heading.innerHTML = `<strong>${gene}</strong> — mRNA abundance per cell <span style="font-weight:normal;color:#888">(Tintori et al. 2016)</span>`;
 card.append(heading);
 card.append(renderEmbryoPictogram(tintoriRow, maxExpr));
+
+const disclaimer = document.createElement("p");
+disclaimer.style.cssText = "font-size:12px; color:#888; margin:12px 0 0; border-top:1px solid #eee; padding-top:8px";
+disclaimer.innerHTML = `Embryo visualization re-created from the original DrEdGE tool by Sophie Tintori, <a href="https://tintori.bio.unc.edu/about.html" target="_blank">tintori.bio.unc.edu</a>. Refer to that site to explore and access the full per-cell RNA expression data.`;
+card.append(disclaimer);
+
 display(card);
 ```
 
