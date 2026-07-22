@@ -12,6 +12,22 @@ export default {
   head: `<style>
     :root {
       --theme-background: #fafafa;
+      --accent: #D64545;
+      --ribo: #E0662B;
+      --rna: #3A7CA5;
+      --ref-grey: #9AA0A6;
+      --ink: #1A2027;
+      --rule: #E6E8EB;
+    }
+    #observablehq-main {
+      color: var(--ink);
+    }
+    #observablehq-main h1,
+    #observablehq-main h2,
+    #observablehq-main h3 {
+      color: var(--ink);
+      letter-spacing: -0.01em;
+      line-height: 1.15;
     }
     .card {
       background: white;
@@ -21,6 +37,14 @@ export default {
     }
     .card p {
       max-width: 100%;
+    }
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: #8A9098;
+      margin: 0 0 4px;
     }
     #observablehq-main p,
     #observablehq-main h1,

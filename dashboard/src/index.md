@@ -56,6 +56,8 @@ const riboRnaData = selectedRow ? reshapeRiboRNA(selectedRow) : [];
 <div class="grid grid-cols-2">
 <div class="card">
 
+<p class="eyebrow">Translational efficiency</p>
+
 ```js
 display(resize((width) => Plot.plot({
   width,
@@ -65,19 +67,21 @@ display(resize((width) => Plot.plot({
   x: {type: "point", domain: stages, label: null, padding: 0.2},
   y: {domain: [-5, 5], ticks: [-5, -2.5, 0, 2.5, 5], label: "Normalized TE"},
   marks: [
-    Plot.ruleY([0], {stroke: "#ddd"}),
-    Plot.lineY(refTE, {x: "stage", y: "TE", z: "gene", stroke: "#999", strokeWidth: 2.5, strokeDasharray: "10 6"}),
-    Plot.dot(refTE, {x: "stage", y: "TE", stroke: "#999", fill: "white", r: 5, strokeWidth: 1.5}),
-    Plot.text(refTE.filter(d => d.stage === "1-cell"), {x: "stage", y: "TE", text: d => refLabels[d.gene], dx: -25, textAnchor: "end", fontSize: 11, fill: "#444"}),
-    Plot.lineY(targetTE, {x: "stage", y: "TE", z: "gene", stroke: "red", strokeWidth: 3}),
-    Plot.dot(targetTE, {x: "stage", y: "TE", fill: "red", r: 5}),
-    Plot.text(targetTE.filter(d => d.stage === "8-cell"), {x: "stage", y: "TE", text: "gene", dx: 18, textAnchor: "start", fontSize: 13, fill: "red", fontWeight: "bold"})
+    Plot.ruleY([0], {stroke: "#E6E8EB"}),
+    Plot.lineY(refTE, {x: "stage", y: "TE", z: "gene", stroke: "#9AA0A6", strokeWidth: 2.5, strokeDasharray: "10 6"}),
+    Plot.dot(refTE, {x: "stage", y: "TE", stroke: "#9AA0A6", fill: "white", r: 5, strokeWidth: 1.5}),
+    Plot.text(refTE.filter(d => d.stage === "1-cell"), {x: "stage", y: "TE", text: d => refLabels[d.gene], dx: -25, textAnchor: "end", fontSize: 11, fill: "#5A6169"}),
+    Plot.lineY(targetTE, {x: "stage", y: "TE", z: "gene", stroke: "#D64545", strokeWidth: 3}),
+    Plot.dot(targetTE, {x: "stage", y: "TE", fill: "#D64545", r: 5}),
+    Plot.text(targetTE.filter(d => d.stage === "8-cell"), {x: "stage", y: "TE", text: "gene", dx: 18, textAnchor: "start", fontSize: 13, fill: "#D64545", fontWeight: "bold"})
   ]
 })))
 ```
 
 </div>
 <div class="card">
+
+<p class="eyebrow">Occupancy vs abundance</p>
 
 ```js
 // Offset labels if values are close
@@ -96,9 +100,9 @@ display(resize((width) => Plot.plot({
   marginRight: 150,
   x: {type: "point", domain: stages, label: null, padding: 0.2},
   y: {domain: [-5, 5], ticks: [-5, -2.5, 0, 2.5, 5], label: "Normalized Values"},
-  color: {domain: ["Ribosome occupancy", "mRNA abundance"], range: ["rgb(228,88,10)", "rgb(55,135,192)"], legend: false},
+  color: {domain: ["Ribosome occupancy", "mRNA abundance"], range: ["#E0662B", "#3A7CA5"], legend: false},
   marks: [
-    Plot.ruleY([0], {stroke: "#ddd"}),
+    Plot.ruleY([0], {stroke: "#E6E8EB"}),
     Plot.lineY(riboRnaData, {x: "stage", y: "value", stroke: "type", z: "type", strokeWidth: 2.5}),
     Plot.dot(riboRnaData, {x: "stage", y: "value", fill: "type", r: 5}),
     Plot.text(labelData, {x: "stage", y: "value", text: "type", dx: 18, textAnchor: "start", fontSize: 12, fill: "type"})
@@ -109,7 +113,9 @@ display(resize((width) => Plot.plot({
 </div>
 </div>
 
-## Spatial mRNA Expression (Tintori et al. 2016)
+<p class="eyebrow" style="margin-top:24px">Spatial localization</p>
+
+## Spatial mRNA Expression <span style="font-weight:400; color:#8A9098; font-size:0.7em">Tintori et al. 2016</span>
 
 ```js
 const embryos = await FileAttachment("data/embryos.json").json();
@@ -215,8 +221,8 @@ function renderEmbryoPictogram(geneRow, maxVal) {
       }
       if (el) {
         el.setAttribute("fill", fill);
-        el.setAttribute("stroke", "#555");
-        el.setAttribute("stroke-width", "0.6");
+        el.setAttribute("stroke", "#333");
+        el.setAttribute("stroke-width", "0.8");
         g2.append(el);
       }
     });
